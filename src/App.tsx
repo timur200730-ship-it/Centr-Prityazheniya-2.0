@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
+import { supabase } from './lib/Supabase'
 import {
   ArrowRight, CalendarDays, Users, Sprout, HeartHandshake, Menu,
   X, MapPin, Sparkles, ShieldCheck, ChevronRight, CircleUserRound
@@ -25,6 +26,101 @@ export default function App() {
   const [active, setActive] = useState<Section>('Главная')
   const [menuOpen, setMenuOpen] = useState(false)
   const [notice, setNotice] = useState('')
+  const [user, setUser] = useState<import('@supabase/supabase-js').User | null>(null)
+  const [authOpen, setAuthOpen] = useState(false)
+  const [authMode, setAuthMode] = useState<'login' | 'register' | 'reset'>('login')
+  const [authEmail, setAuthEmail] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [authPasswordConfirm, setAuthPasswordConfirm] = useState('')
+  const [authDisplayName, setAuthDisplayName] = useState('')
+  const [authBusy, setAuthBusy] = useState(false)
+  const [authMessage, setAuthMessage] = useState('')
+  const [authError, setAuthError] = useState('')
+
+  useEffect(() => {
+    if (!supabase) return
+    let mounted = true
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (mounted) setUser(session?.user ?? null)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  const openAuth = (mode: 'login' | 'register' | 'reset' = 'login') => {
+    setAuthMode(mode)
+    setAuthMessage('')
+    setAuthError('')
+    setAuthOpen(true)
+    setNotice('')
+  }
+
+  const handleAuthSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setAuthError('')
+    setAuthMessage('')
+    if (!supabase) {
+      setAuthError('Авторизация пока не настроена. Проверьте подключение Supabase.')
+      return
+    }
+    if (authMode === 'register' && authPassword !== authPasswordConfirm) {
+      setAuthError('Пароли не совпадают.')
+      return
+    }
+    setAuthBusy(true)
+    try {
+      if (authMode === 'register') {
+        const { data, error } = await supabase.auth.signUp({
+          email: authEmail.trim(),
+          password: authPassword,
+          options: { data: { display_name: authDisplayName.trim() || 'Участник' } },
+        })
+        if (error) throw error
+        if (data.session) {
+          setUser(data.user)
+          setAuthOpen(false)
+          setNotice('Регистрация завершена. Добро пожаловать в Центр Притяжения!')
+        } else {
+          setAuthMessage('Проверьте почту и подтвердите адрес электронной почты, чтобы завершить регистрацию.')
+        }
+      } else if (authMode === 'login') {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: authEmail.trim(),
+          password: authPassword,
+        })
+        if (error) throw error
+        setUser(data.user)
+        setAuthOpen(false)
+        setNotice('Вы вошли в Центр Притяжения. Личный кабинет будет следующим этапом.')
+      } else {
+        const { error } = await supabase.auth.resetPasswordForEmail(authEmail.trim(), {
+          redirectTo: window.location.origin,
+        })
+        if (error) throw error
+        setAuthMessage('Если аккаунт с таким адресом существует, письмо для восстановления будет отправлено. Проверьте почту.')
+      }
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Не удалось выполнить запрос. Попробуйте ещё раз.')
+    } finally {
+      setAuthBusy(false)
+    }
+  }
+
+  const handleSignOut = async () => {
+    if (!supabase) return
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      setNotice('Не удалось завершить сеанс. Попробуйте ещё раз.')
+      return
+    }
+    setUser(null)
+    setNotice('Вы вышли из аккаунта.')
+  }
 
   const choose = (item: Section) => {
     setActive(item)
@@ -43,7 +139,7 @@ export default function App() {
         <nav className="desktop-nav" aria-label="Основная навигация">
           {nav.map(item => <button key={item} className={active === item ? 'nav-link active' : 'nav-link'} onClick={() => choose(item)}>{item}</button>)}
         </nav>
-        <button className="profile-button" onClick={() => setNotice('Личный кабинет появится на следующем этапе. Пока можно знакомиться с центром без регистрации.')}><CircleUserRound size={18} /><span>Моё пространство</span></button>
+        <button className="profile-button" onClick={() => user ? setNotice(`Вы вошли как ${user.email ?? 'участник'}. Личный кабинет будет следующим этапом.`) : openAuth('login')}><CircleUserRound size={18} /><span>{user ? 'Мой аккаунт' : 'Моё пространство'}</span></button>
         <button className="mobile-menu-button" aria-label={menuOpen ? 'Закрыть меню' : 'Открыть меню'} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X /> : <Menu />}</button>
       </header>
 
@@ -70,7 +166,7 @@ export default function App() {
           </div>
         </section>
 
-        {notice && <div className="notice" role="status">{notice}<button onClick={() => setNotice('')} aria-label="Закрыть уведомление"><X size={16} /></button></div>}
+        {notice && <div className="notice" role="status"><span>{notice}</span><div className="notice-actions">{user && <button className="notice-signout" onClick={handleSignOut}>Выйти</button>}<button onClick={() => setNotice('')} aria-label="Закрыть уведомление"><X size={16} /></button></div></div>}
 
         <section className="intro-section section-wrap">
           <div className="section-kicker">РАДЫ ТЕБЯ ВИДЕТЬ</div>
@@ -98,6 +194,36 @@ export default function App() {
         <div className="footer-top"><a className="brand footer-brand" href="#top"><span className="brand-mark"><span /></span><span className="brand-copy"><strong>Центр Притяжения</strong><small>Притягиваем возможности. Вдохновляем на рост.</small></span></a><div className="footer-location"><MapPin size={17} /> Асбест, Свердловская область</div></div>
         <div className="footer-bottom"><span>© Центр Притяжения</span><span>Тепло. Доверие. Развитие.</span><span>Сделано с заботой о людях</span></div>
       </footer>
+
+      {authOpen && (
+        <div className="auth-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setAuthOpen(false)
+        }}>
+          <section className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+            <button className="auth-close" type="button" onClick={() => setAuthOpen(false)} aria-label="Закрыть"><X size={19} /></button>
+            <div className="auth-kicker">ЦЕНТР ПРИТЯЖЕНИЯ</div>
+            <h2 id="auth-title">{authMode === 'register' ? 'Создать пространство' : authMode === 'reset' ? 'Восстановить доступ' : 'Рады снова видеть'}</h2>
+            <p className="auth-description">{authMode === 'register' ? 'Присоединяйся к сообществу и открывай новые возможности.' : authMode === 'reset' ? 'Укажи почту, на которую зарегистрирован аккаунт.' : 'Войди, чтобы быть частью жизни центра.'}</p>
+            <form className="auth-form" onSubmit={handleAuthSubmit}>
+              {authMode === 'register' && <label>Как к тебе обращаться<input value={authDisplayName} onChange={(event) => setAuthDisplayName(event.target.value)} placeholder="Имя" autoComplete="name" /></label>}
+              <label>Электронная почта<input type="email" required value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="name@example.com" autoComplete="email" /></label>
+              {authMode !== 'reset' && <label>Пароль<input type="password" required minLength={6} value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="Не менее 6 символов" autoComplete={authMode === 'register' ? 'new-password' : 'current-password'} /></label>}
+              {authMode === 'register' && <label>Повтори пароль<input type="password" required minLength={6} value={authPasswordConfirm} onChange={(event) => setAuthPasswordConfirm(event.target.value)} placeholder="Повтори пароль" autoComplete="new-password" /></label>}
+              {authError && <div className="auth-feedback error" role="alert">{authError}</div>}
+              {authMessage && <div className="auth-feedback success" role="status">{authMessage}</div>}
+              <button className="button-primary auth-submit" type="submit" disabled={authBusy}>{authBusy ? 'Подожди…' : authMode === 'register' ? 'Зарегистрироваться' : authMode === 'reset' ? 'Отправить письмо' : 'Войти'} <ArrowRight size={17} /></button>
+            </form>
+            <div className="auth-switches">
+              {authMode === 'login' && <>
+                <button type="button" onClick={() => { setAuthMode('register'); setAuthMessage(''); setAuthError('') }}>Создать аккаунт</button>
+                <button type="button" onClick={() => { setAuthMode('reset'); setAuthMessage(''); setAuthError('') }}>Забыли пароль?</button>
+              </>}
+              {authMode !== 'login' && <button type="button" onClick={() => { setAuthMode('login'); setAuthMessage(''); setAuthError('') }}>Вернуться ко входу</button>}
+            </div>
+            <p className="auth-footnote">Твои данные используются только для работы аккаунта и взаимодействия с центром.</p>
+          </section>
+        </div>
+      )}
     </div>
   )
 }
