@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react'
-import { supabase } from './lib/Supabase'
+import { supabase } from './lib/supabase'
 import {
   ArrowRight, CalendarDays, Users, Sprout, HeartHandshake, Menu,
   X, MapPin, Sparkles, ShieldCheck, ChevronRight, CircleUserRound
