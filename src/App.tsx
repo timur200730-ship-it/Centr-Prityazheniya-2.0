@@ -143,7 +143,7 @@ export default function App() {
         <button className="mobile-menu-button" aria-label={menuOpen ? 'Закрыть меню' : 'Открыть меню'} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X /> : <Menu />}</button>
       </header>
 
-      {menuOpen && <nav className="mobile-nav">{nav.map(item => <button key={item} onClick={() => choose(item)}>{item}<ChevronRight size={17} /></button>)}</nav>}
+      {menuOpen && <nav className="mobile-nav">{nav.map(item => <button key={item} onClick={() => choose(item)}>{item}<ChevronRight size={17} /></button>)}<button className="mobile-account-link" onClick={() => { setMenuOpen(false); user ? setNotice(`Вы вошли как ${user.email ?? "участник"}. Личный кабинет будет следующим этапом.`) : openAuth("login") }}><CircleUserRound size={17} />{user ? "Мой аккаунт" : "Моё пространство"}<ChevronRight size={17} /></button></nav>}
 
       <main id="top">
         <section className="hero">
