@@ -402,6 +402,33 @@ export default function App() {
                 <button className="button-primary account-save" type="submit" disabled={profileSaving}><Save size={16} />{profileSaving ? 'Сохраняем…' : 'Сохранить изменения'}</button>
               </form>
             )}
+            {['Организатор', 'Модератор', 'Администратор', 'Суперадминистратор'].includes(accountRole) && (
+              <section className="organizer-tools">
+                <div className="section-kicker">РАБОЧЕЕ ПРОСТРАНСТВО</div>
+                <h3>Мероприятия центра</h3>
+                <p className="organizer-hint">Создавай события для афиши. Черновик виден только тебе, опубликованное мероприятие доступно участникам.</p>
+                <form className="organizer-form" onSubmit={handleEventCreate}>
+                  <label>Название мероприятия<input required maxLength={140} value={eventDraft.title} onChange={e => setEventDraft(v => ({ ...v, title: e.target.value }))} placeholder="Например, творческая встреча" /></label>
+                  <label>Описание<textarea rows={3} maxLength={3000} value={eventDraft.description} onChange={e => setEventDraft(v => ({ ...v, description: e.target.value }))} placeholder="Расскажи, что будет происходить" /></label>
+                  <div className="organizer-fields">
+                    <label>Начало<input required type="datetime-local" value={eventDraft.starts_at} onChange={e => setEventDraft(v => ({ ...v, starts_at: e.target.value }))} /></label>
+                    <label>Окончание<input type="datetime-local" value={eventDraft.ends_at} onChange={e => setEventDraft(v => ({ ...v, ends_at: e.target.value }))} /></label>
+                  </div>
+                  <div className="organizer-fields">
+                    <label>Место проведения<input maxLength={180} value={eventDraft.location} onChange={e => setEventDraft(v => ({ ...v, location: e.target.value }))} placeholder="Адрес или площадка" /></label>
+                    <label>Количество мест<input type="number" min="1" step="1" value={eventDraft.capacity} onChange={e => setEventDraft(v => ({ ...v, capacity: e.target.value }))} placeholder="Без ограничения" /></label>
+                  </div>
+                  <label>Статус публикации<select value={eventDraft.status} onChange={e => setEventDraft(v => ({ ...v, status: e.target.value as EventDraft['status'] }))}><option value="draft">Сохранить как черновик</option><option value="published">Опубликовать в афише</option></select></label>
+                  {eventFormError && <div className="auth-feedback error" role="alert">{eventFormError}</div>}
+                  {eventFormMessage && <div className="auth-feedback success" role="status">{eventFormMessage}</div>}
+                  <button className="button-primary account-save" type="submit" disabled={eventSaving}>{eventSaving ? 'Сохраняем…' : 'Сохранить мероприятие'} <ArrowRight size={16}/></button>
+                </form>
+                <div className="managed-events">
+                  <h4>Мои мероприятия</h4>
+                  {managedEvents.length === 0 ? <p className="organizer-hint">Пока мероприятий нет.</p> : managedEvents.map(item => <div className="managed-event" key={item.id}><div><strong>{item.title}</strong><span>{new Date(item.starts_at).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })} · {item.location || 'Место не указано'}</span></div><small className={item.status === 'published' ? 'published' : ''}>{item.status === 'published' ? 'Опубликовано' : item.status === 'draft' ? 'Черновик' : 'Отменено'}</small></div>)}
+                </div>
+              </section>
+            )}
             <div className="account-footer"><span>Управление учётной записью</span><button type="button" onClick={async () => { await handleSignOut(); setAccountOpen(false) }}><LogOut size={15} />Выйти</button></div>
           </section>
         </div>
