@@ -248,6 +248,25 @@ begin
 end;
 $$;
 
+
+create or replace function public.revoke_organizer_invite(p_invite_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $
+begin
+  if auth.uid() is null or not public.is_staff(auth.uid()) then
+    raise exception 'not_authorized' using errcode = '42501';
+  end if;
+  update public.organizer_invite_links set revoked_at = now()
+    where id = p_invite_id and revoked_at is null;
+end;
+$;
+
+revoke all on function public.revoke_organizer_invite(uuid) from public;
+grant execute on function public.revoke_organizer_invite(uuid) to authenticated;
+
 revoke all on function public.create_organizer_invite(text,text,text,timestamptz) from public;
 revoke all on function public.submit_event_request(text,text,text,text,timestamptz,timestamptz,text,text,text,text,integer,text,text,text,text) from public;
 revoke all on function public.approve_event_submission(uuid) from public;
