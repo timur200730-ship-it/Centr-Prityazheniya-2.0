@@ -72,8 +72,12 @@ alter table public.events enable row level security;
 alter table public.event_registrations enable row level security;
 
 -- Published catalogs are visible without registration. Drafts are visible only to their creator and staff.
-create policy "Published clubs are publicly readable" on public.clubs
-for select to anon, authenticated
+create policy "Anyone can read published clubs" on public.clubs
+for select to anon
+using (status = 'published');
+
+create policy "Authenticated users read published and own clubs" on public.clubs
+for select to authenticated
 using (status = 'published' or created_by = (select auth.uid()) or public.is_staff((select auth.uid())));
 
 create policy "Staff manage clubs" on public.clubs
@@ -98,8 +102,12 @@ for all to authenticated
 using (public.is_staff((select auth.uid())))
 with check (public.is_staff((select auth.uid())));
 
-create policy "Published events are publicly readable" on public.events
-for select to anon, authenticated
+create policy "Anyone can read published events" on public.events
+for select to anon
+using (status = 'published');
+
+create policy "Authenticated users read published and own events" on public.events
+for select to authenticated
 using (
   status = 'published'
   or created_by = (select auth.uid())
@@ -138,9 +146,10 @@ for all to authenticated
 using (public.is_staff((select auth.uid())))
 with check (public.is_staff((select auth.uid())));
 
-grant select on public.clubs, public.events to anon, authenticated;
-grant select, insert on public.club_memberships to authenticated;
-grant select, insert, update on public.event_registrations to authenticated;
+grant select on public.clubs, public.events to anon;
+grant select, insert, update, delete on public.clubs, public.events to authenticated;
+grant select, insert, update, delete on public.club_memberships to authenticated;
+grant select, insert, update, delete on public.event_registrations to authenticated;
 
 comment on table public.clubs is 'Published community clubs and initiatives.';
 comment on table public.club_memberships is 'Membership requests and member status for clubs.';
