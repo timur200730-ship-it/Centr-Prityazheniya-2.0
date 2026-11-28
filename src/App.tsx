@@ -101,7 +101,6 @@ export default function App() {
           visibility: p.visibility === 'private' ? 'private' : 'community',
         })
       }
-      const role = rolesResult.data?.[0]?.role
       const labels: Record<string, string> = {
         member: 'Участник',
         club_leader: 'Руководитель сообщества',
@@ -110,7 +109,12 @@ export default function App() {
         administrator: 'Администратор',
         super_admin: 'Суперадминистратор',
       }
-      setAccountRole(role ? (labels[role] ?? 'Участник') : 'Участник')
+      // У пользователя может быть несколько ролей. Выбираем наиболее привилегированную,
+      // чтобы роль member не скрывала доступ организатора или сотрудника.
+      const rolePriority = ['super_admin', 'administrator', 'moderator', 'organizer', 'club_leader', 'member']
+      const userRoles = (rolesResult.data ?? []).map(row => row.role as string)
+      const primaryRole = rolePriority.find(role => userRoles.includes(role))
+      setAccountRole(primaryRole ? (labels[primaryRole] ?? 'Участник') : 'Участник')
     }).catch(() => {
       if (active) setProfileError('Не удалось загрузить профиль. Проверь подключение и попробуй ещё раз.')
     }).finally(() => {
