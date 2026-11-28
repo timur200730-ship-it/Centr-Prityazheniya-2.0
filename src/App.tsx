@@ -11,7 +11,7 @@ type Section = 'Главная' | 'Афиша' | 'Сообщества' | 'Ра�
 type ProfileDraft = { display_name: string; bio: string; city: string; interests: string; visibility: 'community' | 'private' }
 type EventItem = { id: string; title: string; description: string; starts_at: string; ends_at: string | null; location: string; capacity: number | null }
 type ClubItem = { id: string; name: string; summary: string; description: string; city: string }
-type ManagedEvent = { id: string; title: string; starts_at: string; location: string; status: 'draft' | 'published' | 'cancelled' }
+type ManagedEvent = { id: string; title: string; starts_at: string; location: string; status: 'draft' | 'published' | 'cancelled' | 'pending' | 'approved' | 'rejected' }
 type EventDraft = { title: string; description: string; starts_at: string; ends_at: string; location: string; capacity: string; status: 'draft' | 'published' }
 
 const nav: Section[] = ['Главная', 'Афиша', 'Сообщества', 'Развитие', 'О центре']
@@ -172,7 +172,7 @@ export default function App() {
     const canManage = ['Организатор', 'Модератор', 'Администратор', 'Суперадминистратор'].includes(accountRole)
     if (!client || !user || !accountOpen || !canManage) return
     let alive = true
-    client.from('events').select('id, title, starts_at, location, status').eq('created_by', user.id).order('starts_at', { ascending: true })
+    client.from('event_submissions').select('id, title, starts_at, location, status').eq('submitted_by', user.id).order('starts_at', { ascending: true })
       .then(({ data, error }) => {
         if (!alive) return
         if (error) setEventFormError('Не удалось загрузить твои мероприятия.')
@@ -191,9 +191,9 @@ export default function App() {
     if (endsAt && (Number.isNaN(endsAt.getTime()) || endsAt <= startsAt)) { setEventFormError('Время окончания должно быть позже начала.'); setEventSaving(false); return }
     const capacity = eventDraft.capacity.trim() ? Number(eventDraft.capacity) : null
     if (capacity !== null && (!Number.isInteger(capacity) || capacity < 1)) { setEventFormError('Количество мест должно быть целым числом больше нуля.'); setEventSaving(false); return }
-    const { data, error } = await supabase.from('events').insert({ title: eventDraft.title.trim(), description: eventDraft.description.trim(), starts_at: startsAt.toISOString(), ends_at: endsAt?.toISOString() ?? null, location: eventDraft.location.trim(), capacity, status: 'draft', created_by: user.id }).select('id, title, starts_at, location, status').single()
+    const { data, error } = await supabase.from('event_submissions').insert({ invite_id: null, submitted_by: user.id, title: eventDraft.title.trim(), description: eventDraft.description.trim(), category: '', starts_at: startsAt.toISOString(), ends_at: endsAt?.toISOString() ?? null, location: eventDraft.location.trim(), room: '', age_limit: '', price_label: '', capacity, organizer_name: profileDraft.display_name.trim(), contact_name: profileDraft.display_name.trim(), contact_email: user.email ?? '', status: 'pending' }).select('id, title, starts_at, location, status').single()
     if (error) setEventFormError('Не удалось сохранить мероприятие. Проверь права организатора и обязательные поля.')
-    else if (data) { setManagedEvents(current => [...current, data as ManagedEvent].sort((a,b) => a.starts_at.localeCompare(b.starts_at))); setEventDraft({ title: '', description: '', starts_at: '', ends_at: '', location: 'Асбест', capacity: '', status: 'draft' }); setEventFormMessage('Черновик отправлен на согласование администратору.') }
+    else if (data) { setManagedEvents(current => [...current, data as ManagedEvent].sort((a,b) => a.starts_at.localeCompare(b.starts_at))); setEventDraft({ title: '', description: '', starts_at: '', ends_at: '', location: 'Асбест', capacity: '', status: 'draft' }); setEventFormMessage('Заявка отправлена администратору на согласование.') }
     setEventSaving(false)
   }
   const handleProfileSave = async (event: FormEvent<HTMLFormElement>) => {
@@ -435,7 +435,7 @@ export default function App() {
                 </form>
                 <div className="managed-events">
                   <h4>Мои мероприятия</h4>
-                  {managedEvents.length === 0 ? <p className="organizer-hint">Пока мероприятий нет.</p> : managedEvents.map(item => <div className="managed-event" key={item.id}><div><strong>{item.title}</strong><span>{new Date(item.starts_at).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })} · {item.location || 'Место не указано'}</span></div><small className={item.status === 'published' ? 'published' : ''}>{item.status === 'published' ? 'Опубликовано' : item.status === 'draft' ? 'Черновик' : 'Отменено'}</small></div>)}
+                  {managedEvents.length === 0 ? <p className="organizer-hint">Пока мероприятий нет.</p> : managedEvents.map(item => <div className="managed-event" key={item.id}><div><strong>{item.title}</strong><span>{new Date(item.starts_at).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })} · {item.location || 'Место не указано'}</span></div><small className={item.status === 'published' || item.status === 'approved' ? 'published' : ''}>{item.status === 'approved' ? 'Утверждено' : item.status === 'pending' ? 'На согласовании' : item.status === 'rejected' ? 'Отклонено' : item.status === 'published' ? 'Опубликовано' : item.status === 'draft' ? 'Черновик' : 'Отменено'}</small></div>)}
                 </div>
               </section>
             )}
