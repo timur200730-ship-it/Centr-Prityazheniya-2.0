@@ -33,3 +33,30 @@
 .auth-footnote{font-size:9px;line-height:1.7;color:#a29aa0;text-align:center;margin:23px 0 0}
 @media(max-width:520px){.auth-backdrop{align-items:center;padding:14px}.auth-modal{padding:34px 23px 25px;border-radius:18px}.auth-modal h2{font-size:29px}.auth-switches{flex-wrap:wrap}}
 
+
+
+/* Member personal cabinet */
+.account-backdrop{position:fixed;inset:0;z-index:32;background:rgba(49,42,50,.48);backdrop-filter:blur(5px);display:flex;justify-content:center;align-items:center;padding:18px;overflow-y:auto}
+.account-panel{position:relative;width:min(100%,560px);max-height:min(92vh,900px);overflow-y:auto;background:#fbf9f6;border:1px solid #e8dfd8;border-radius:22px;padding:34px 36px 25px;box-shadow:0 24px 80px rgba(49,42,50,.22)}
+.account-close{position:absolute;right:17px;top:17px;width:34px;height:34px;border:1px solid #e9e1da;border-radius:50%;background:transparent;color:#746b73;display:grid;place-items:center}
+.account-panel h2{font-family:"Playfair Display",Georgia,serif;font-size:34px;line-height:1.2;font-weight:500;color:#493f4b;margin:0 40px 7px 0}
+.account-subtitle{font-size:12px;line-height:1.7;color:#817982;margin:0 0 20px}
+.account-identity{display:flex;align-items:center;gap:14px;padding:15px;border:1px solid #ebe3dc;background:#f5f0eb;border-radius:14px;margin-bottom:20px}
+.account-avatar{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:#e9dfdc;color:#a16f65;flex:none}
+.account-identity>div:last-child{display:flex;flex-direction:column;gap:4px;min-width:0}
+.account-identity strong{font-size:14px;color:#514751}
+.account-identity span{display:flex;align-items:center;gap:6px;font-size:10px;color:#807780;overflow-wrap:anywhere}
+.account-identity small{font-size:9px;color:#a16f65;letter-spacing:.3px}
+.account-form{display:flex;flex-direction:column;gap:13px}
+.account-form label{display:flex;flex-direction:column;gap:7px;color:#5f5660;font-size:11px;font-weight:700}
+.account-form input,.account-form textarea,.account-form select{width:100%;border:1px solid #e5ddd6;border-radius:10px;background:#fffdfa;padding:11px 13px;color:#403944;font:inherit;font-size:12px;outline:none;transition:border-color .2s,box-shadow .2s}
+.account-form input,.account-form select{height:44px}
+.account-form textarea{resize:vertical;min-height:76px;line-height:1.6}
+.account-form input:focus,.account-form textarea:focus,.account-form select:focus{border-color:#b97865;box-shadow:0 0 0 3px #b9786518}
+.account-form label small{font-size:9px;color:#968c93;font-weight:400}
+.account-save{width:100%;justify-content:center;margin-top:4px}
+.account-save:disabled{opacity:.65;cursor:wait}
+.account-loading{padding:24px;text-align:center;color:#817982;font-size:12px}
+.account-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid #ebe3dc;margin-top:20px;padding-top:16px;color:#928991;font-size:10px}
+.account-footer button{border:0;background:none;color:#9a6d63;display:flex;align-items:center;gap:7px;font:inherit;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:520px){.account-backdrop{align-items:flex-end;padding:0}.account-panel{width:100%;max-height:94vh;border-radius:20px 20px 0 0;padding:30px 21px 24px}.account-panel h2{font-size:30px}}

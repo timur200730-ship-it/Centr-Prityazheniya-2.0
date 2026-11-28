@@ -2,10 +2,11 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { supabase } from './lib/supabase'
 import {
   ArrowRight, CalendarDays, Users, Sprout, HeartHandshake, Menu,
-  X, MapPin, Sparkles, ShieldCheck, ChevronRight, CircleUserRound
+  X, MapPin, Sparkles, ShieldCheck, ChevronRight, CircleUserRound, Save, Mail, LogOut
 } from 'lucide-react'
 
 type Section = 'Главная' | 'Афиша' | 'Сообщества' | 'Развитие' | 'О центре'
+type ProfileDraft = { display_name: string; bio: string; city: string; interests: string; visibility: 'community' | 'private' }
 
 const nav: Section[] = ['Главная', 'Афиша', 'Сообщества', 'Развитие', 'О центре']
 
@@ -36,6 +37,13 @@ export default function App() {
   const [authBusy, setAuthBusy] = useState(false)
   const [authMessage, setAuthMessage] = useState('')
   const [authError, setAuthError] = useState('')
+  const [accountOpen, setAccountOpen] = useState(false)
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileError, setProfileError] = useState('')
+  const [profileMessage, setProfileMessage] = useState('')
+  const [accountRole, setAccountRole] = useState('Участник')
+  const [profileDraft, setProfileDraft] = useState<ProfileDraft>({ display_name: '', bio: '', city: 'Асбест', interests: '', visibility: 'community' })
 
   useEffect(() => {
     if (!supabase) return
@@ -51,6 +59,79 @@ export default function App() {
       subscription.unsubscribe()
     }
   }, [])
+
+  useEffect(() => {
+    if (!supabase || !user) {
+      setAccountRole('Участник')
+      return
+    }
+    let active = true
+    setProfileLoading(true)
+    setProfileError('')
+    Promise.all([
+      supabase.from('profiles').select('display_name, bio, city, interests, visibility').eq('id', user.id).maybeSingle(),
+      supabase.from('user_roles').select('role').eq('user_id', user.id),
+    ]).then(([profileResult, rolesResult]) => {
+      if (!active) return
+      if (profileResult.error) {
+        setProfileError('Не удалось загрузить профиль. Попробуй обновить страницу.')
+      } else if (profileResult.data) {
+        const p = profileResult.data
+        setProfileDraft({
+          display_name: p.display_name ?? '',
+          bio: p.bio ?? '',
+          city: p.city ?? 'Асбест',
+          interests: Array.isArray(p.interests) ? p.interests.join(', ') : '',
+          visibility: p.visibility === 'private' ? 'private' : 'community',
+        })
+      }
+      const role = rolesResult.data?.[0]?.role
+      const labels: Record<string, string> = {
+        member: 'Участник',
+        club_leader: 'Руководитель сообщества',
+        organizer: 'Организатор',
+        moderator: 'Модератор',
+        administrator: 'Администратор',
+        super_admin: 'Суперадминистратор',
+      }
+      setAccountRole(role ? (labels[role] ?? 'Участник') : 'Участник')
+    }).catch(() => {
+      if (active) setProfileError('Не удалось загрузить профиль. Проверь подключение и попробуй ещё раз.')
+    }).finally(() => {
+      if (active) setProfileLoading(false)
+    })
+    return () => { active = false }
+  }, [user])
+
+  const handleProfileSave = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!supabase || !user) return
+    setProfileSaving(true)
+    setProfileError('')
+    setProfileMessage('')
+    const interests = profileDraft.interests.split(',').map(item => item.trim()).filter(Boolean)
+    const { data, error } = await supabase.from('profiles').update({
+      display_name: profileDraft.display_name.trim() || 'Участник',
+      bio: profileDraft.bio.trim(),
+      city: profileDraft.city.trim(),
+      interests,
+      visibility: profileDraft.visibility,
+      updated_at: new Date().toISOString(),
+    }).eq('id', user.id).select('display_name, bio, city, interests, visibility').single()
+    if (error) {
+      setProfileError('Не удалось сохранить изменения. Проверь подключение и попробуй ещё раз.')
+    } else if (data) {
+      setProfileDraft({
+        display_name: data.display_name ?? '',
+        bio: data.bio ?? '',
+        city: data.city ?? '',
+        interests: Array.isArray(data.interests) ? data.interests.join(', ') : '',
+        visibility: data.visibility === 'private' ? 'private' : 'community',
+      })
+      setProfileMessage('Изменения профиля сохранены.')
+    }
+    setProfileSaving(false)
+  }
 
   const openAuth = (mode: 'login' | 'register' | 'reset' = 'login') => {
     setAuthMode(mode)
@@ -142,11 +223,11 @@ export default function App() {
         <nav className="desktop-nav" aria-label="Основная навигация">
           {nav.map(item => <button key={item} className={active === item ? 'nav-link active' : 'nav-link'} onClick={() => choose(item)}>{item}</button>)}
         </nav>
-        <button className="profile-button" onClick={() => user ? setNotice(`Вы вошли как ${user.email ?? 'участник'}. Личный кабинет будет следующим этапом.`) : openAuth('login')}><CircleUserRound size={18} /><span>{user ? 'Мой аккаунт' : 'Моё пространство'}</span></button>
+        <button className="profile-button" onClick={() => user ? setAccountOpen(true) : openAuth('login')}><CircleUserRound size={18} /><span>{user ? 'Мой аккаунт' : 'Моё пространство'}</span></button>
         <button className="mobile-menu-button" aria-label={menuOpen ? 'Закрыть меню' : 'Открыть меню'} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X /> : <Menu />}</button>
       </header>
 
-      {menuOpen && <nav className="mobile-nav">{nav.map(item => <button key={item} onClick={() => choose(item)}>{item}<ChevronRight size={17} /></button>)}<button className="mobile-account-link" onClick={() => { setMenuOpen(false); user ? setNotice(`Вы вошли как ${user.email ?? "участник"}. Личный кабинет будет следующим этапом.`) : openAuth("login") }}><CircleUserRound size={17} />{user ? "Мой аккаунт" : "Моё пространство"}<ChevronRight size={17} /></button></nav>}
+      {menuOpen && <nav className="mobile-nav">{nav.map(item => <button key={item} onClick={() => choose(item)}>{item}<ChevronRight size={17} /></button>)}<button className="mobile-account-link" onClick={() => { setMenuOpen(false); user ? setAccountOpen(true) : openAuth("login") }}><CircleUserRound size={17} />{user ? "Мой аккаунт" : "Моё пространство"}<ChevronRight size={17} /></button></nav>}
 
       <main id="top">
         <section className="hero">
@@ -197,6 +278,36 @@ export default function App() {
         <div className="footer-top"><a className="brand footer-brand" href="#top"><span className="brand-mark"><span /></span><span className="brand-copy"><strong>Центр Притяжения</strong><small>Притягиваем возможности. Вдохновляем на рост.</small></span></a><div className="footer-location"><MapPin size={17} /> Асбест, Свердловская область</div></div>
         <div className="footer-bottom"><span>© Центр Притяжения</span><span>Тепло. Доверие. Развитие.</span><span>Сделано с заботой о людях</span></div>
       </footer>
+
+      {accountOpen && user && (
+        <div className="account-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setAccountOpen(false)
+        }}>
+          <section className="account-panel" role="dialog" aria-modal="true" aria-labelledby="account-title">
+            <button className="account-close" type="button" onClick={() => setAccountOpen(false)} aria-label="Закрыть"><X size={19} /></button>
+            <div className="auth-kicker">ЦЕНТР ПРИТЯЖЕНИЯ · ЛИЧНОЕ ПРОСТРАНСТВО</div>
+            <h2 id="account-title">Мой профиль</h2>
+            <p className="account-subtitle">Здесь начинается твоё пространство в сообществе.</p>
+            <div className="account-identity">
+              <div className="account-avatar"><CircleUserRound size={30} /></div>
+              <div><strong>{profileDraft.display_name || 'Участник'}</strong><span><Mail size={13} />{user.email}</span><small>{accountRole}</small></div>
+            </div>
+            {profileLoading ? <div className="account-loading">Загружаем профиль…</div> : (
+              <form className="account-form" onSubmit={handleProfileSave}>
+                <label>Как к тебе обращаться<input value={profileDraft.display_name} onChange={e => setProfileDraft(p => ({ ...p, display_name: e.target.value }))} maxLength={80} placeholder="Имя" /></label>
+                <label>О себе<textarea value={profileDraft.bio} onChange={e => setProfileDraft(p => ({ ...p, bio: e.target.value }))} maxLength={500} rows={3} placeholder="Немного о себе — по желанию" /></label>
+                <label>Город<input value={profileDraft.city} onChange={e => setProfileDraft(p => ({ ...p, city: e.target.value }))} maxLength={100} placeholder="Город" /></label>
+                <label>Интересы<input value={profileDraft.interests} onChange={e => setProfileDraft(p => ({ ...p, interests: e.target.value }))} maxLength={300} placeholder="Например: музыка, спорт, творчество" /><small>Перечисли интересы через запятую.</small></label>
+                <label>Видимость профиля<select value={profileDraft.visibility} onChange={e => setProfileDraft(p => ({ ...p, visibility: e.target.value as ProfileDraft['visibility'] }))}><option value="community">Виден участникам сообщества</option><option value="private">Только мне</option></select></label>
+                {profileError && <div className="auth-feedback error" role="alert">{profileError}</div>}
+                {profileMessage && <div className="auth-feedback success" role="status">{profileMessage}</div>}
+                <button className="button-primary account-save" type="submit" disabled={profileSaving}><Save size={16} />{profileSaving ? 'Сохраняем…' : 'Сохранить изменения'}</button>
+              </form>
+            )}
+            <div className="account-footer"><span>Управление учётной записью</span><button type="button" onClick={async () => { await handleSignOut(); setAccountOpen(false) }}><LogOut size={15} />Выйти</button></div>
+          </section>
+        </div>
+      )}
 
       {authOpen && (
         <div className="auth-backdrop" role="presentation" onMouseDown={(event) => {
