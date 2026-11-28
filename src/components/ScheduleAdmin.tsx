@@ -53,6 +53,14 @@ export default function ScheduleAdmin({ onClose }: { onClose: () => void }) {
     else {setMessage(approve?'Мероприятие утверждено и опубликовано в афише.':'Заявка отклонена.');await load()}
     setBusy(null)
   }
+  const revoke=async(id:string)=>{
+    if(!supabase)return
+    setBusy(id);setError('');setMessage('')
+    const {error:rpcError}=await supabase.rpc('revoke_organizer_invite',{p_invite_id:id})
+    if(rpcError)setError('Не удалось отозвать ссылку.')
+    else {setMessage('Ссылка отозвана. Отправить по ней новую заявку больше нельзя.');await load()}
+    setBusy(null)
+  }
   const copy=async(value:string)=>{
     try{await navigator.clipboard.writeText(value);setMessage('Ссылка скопирована.')}
     catch{setMessage('Не удалось скопировать автоматически. Выдели и скопируй ссылку вручную.')}
@@ -74,7 +82,7 @@ export default function ScheduleAdmin({ onClose }: { onClose: () => void }) {
         </article>)}
       </div>:<div className="schedule-links">
         <div className="schedule-create-link"><h3>Создать ссылку для организатора</h3><p>Ссылка открывает короткую форму без регистрации. Все отправленные мероприятия попадут на модерацию.</p><label>Название ссылки<input value={label} onChange={e=>setLabel(e.target.value)} placeholder="Например, Елена Осинцева"/></label><label>Имя организатора<input value={organizer} onChange={e=>setOrganizer(e.target.value)} placeholder="Имя или название проекта"/></label><button className="button-primary" onClick={()=>void createLink()} disabled={busy==='create'}><Plus size={16}/>{busy==='create'?'Создаём…':'Создать персональную ссылку'}</button></div>
-        <h3>Выданные ссылки</h3>{invites.length===0?<p className="organizer-hint">Пока ссылок нет.</p>:invites.map(link=><article className="schedule-invite" key={link.id}><div><strong>{link.label}</strong><span>{link.organizer_name||'Организатор не указан'} · заявок: {link.submissions_count} · создана {fmt(link.created_at)}</span><small>{link.revoked_at?'Отозвана':link.expires_at&&new Date(link.expires_at)<new Date()?'Истекла':'Активна'}</small></div><button onClick={()=>setMessage('Для повторной выдачи ссылки создай новую: исходный секрет хранится только у организатора.')}>Информация</button></article>)}
+        <h3>Выданные ссылки</h3>{invites.length===0?<p className="organizer-hint">Пока ссылок нет.</p>:invites.map(link=><article className="schedule-invite" key={link.id}><div><strong>{link.label}</strong><span>{link.organizer_name||'Организатор не указан'} · заявок: {link.submissions_count} · создана {fmt(link.created_at)}</span><small>{link.revoked_at?'Отозвана':link.expires_at&&new Date(link.expires_at)<new Date()?'Истекла':'Активна'}</small></div><button disabled={!!link.revoked_at||busy===link.id} onClick={()=>void revoke(link.id)}>{link.revoked_at?'Отозвана':'Отозвать ссылку'}</button></article>)}
       </div>}
       <footer className="schedule-footer">Публикация в общей афише происходит только после утверждения администратором.</footer>
     </section>
