@@ -1,5 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { supabase } from './lib/supabase'
+import EventRequestForm from './components/EventRequestForm'
+import ScheduleAdmin from './components/ScheduleAdmin'
 import {
   ArrowRight, CalendarDays, Users, Sprout, HeartHandshake, Menu,
   X, MapPin, Sparkles, ShieldCheck, ChevronRight, CircleUserRound, Save, Mail, LogOut
@@ -9,8 +11,8 @@ type Section = 'Главная' | 'Афиша' | 'Сообщества' | 'Ра�
 type ProfileDraft = { display_name: string; bio: string; city: string; interests: string; visibility: 'community' | 'private' }
 type EventItem = { id: string; title: string; description: string; starts_at: string; ends_at: string | null; location: string; capacity: number | null }
 type ClubItem = { id: string; name: string; summary: string; description: string; city: string }
-type ManagedEvent = { id: string; title: string; starts_at: string; location: string; status: 'draft' | 'published' | 'cancelled' }
-type EventDraft = { title: string; description: string; starts_at: string; ends_at: string; location: string; capacity: string; status: 'draft' | 'published' }
+type ManagedEvent = { id: string; title: string; starts_at: string; location: string; status: 'draft' | 'published' | 'cancelled' | 'pending' | 'approved' | 'rejected' }
+type EventDraft = { title: string; description: string; starts_at: string; ends_at: string; location: string; room: string; category: string; age_limit: string; price_label: string; capacity: string; status: 'draft' | 'published' }
 
 const nav: Section[] = ['Главная', 'Афиша', 'Сообщества', 'Развитие', 'О центре']
 
@@ -42,6 +44,7 @@ export default function App() {
   const [authMessage, setAuthMessage] = useState('')
   const [authError, setAuthError] = useState('')
   const [accountOpen, setAccountOpen] = useState(false)
+  const [scheduleOpen, setScheduleOpen] = useState(false)
   const [profileLoading, setProfileLoading] = useState(false)
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileError, setProfileError] = useState('')
@@ -59,7 +62,7 @@ export default function App() {
   const [eventSaving, setEventSaving] = useState(false)
   const [eventFormError, setEventFormError] = useState('')
   const [eventFormMessage, setEventFormMessage] = useState('')
-  const [eventDraft, setEventDraft] = useState<EventDraft>({ title: '', description: '', starts_at: '', ends_at: '', location: 'Асбест', capacity: '', status: 'draft' })
+  const [eventDraft, setEventDraft] = useState<EventDraft>({ title: '', description: '', starts_at: '', ends_at: '', location: 'Асбест', room: '', category: '', age_limit: '', price_label: 'Бесплатно', capacity: '', status: 'draft' })
 
   useEffect(() => {
     if (!supabase) return
@@ -169,7 +172,7 @@ export default function App() {
     const canManage = ['Организатор', 'Модератор', 'Администратор', 'Суперадминистратор'].includes(accountRole)
     if (!client || !user || !accountOpen || !canManage) return
     let alive = true
-    client.from('events').select('id, title, starts_at, location, status').eq('created_by', user.id).order('starts_at', { ascending: true })
+    client.from('event_submissions').select('id, title, starts_at, location, status').eq('submitted_by', user.id).order('starts_at', { ascending: true })
       .then(({ data, error }) => {
         if (!alive) return
         if (error) setEventFormError('Не удалось загрузить твои мероприятия.')
@@ -188,9 +191,9 @@ export default function App() {
     if (endsAt && (Number.isNaN(endsAt.getTime()) || endsAt <= startsAt)) { setEventFormError('Время окончания должно быть позже начала.'); setEventSaving(false); return }
     const capacity = eventDraft.capacity.trim() ? Number(eventDraft.capacity) : null
     if (capacity !== null && (!Number.isInteger(capacity) || capacity < 1)) { setEventFormError('Количество мест должно быть целым числом больше нуля.'); setEventSaving(false); return }
-    const { data, error } = await supabase.from('events').insert({ title: eventDraft.title.trim(), description: eventDraft.description.trim(), starts_at: startsAt.toISOString(), ends_at: endsAt?.toISOString() ?? null, location: eventDraft.location.trim(), capacity, status: eventDraft.status, created_by: user.id }).select('id, title, starts_at, location, status').single()
+    const { data, error } = await supabase.from('event_submissions').insert({ invite_id: null, submitted_by: user.id, title: eventDraft.title.trim(), description: eventDraft.description.trim(), category: eventDraft.category, starts_at: startsAt.toISOString(), ends_at: endsAt?.toISOString() ?? null, location: eventDraft.location.trim(), room: eventDraft.room.trim(), age_limit: eventDraft.age_limit.trim(), price_label: eventDraft.price_label.trim(), capacity, organizer_name: profileDraft.display_name.trim(), contact_name: profileDraft.display_name.trim(), contact_email: user.email ?? '', status: 'pending' }).select('id, title, starts_at, location, status').single()
     if (error) setEventFormError('Не удалось сохранить мероприятие. Проверь права организатора и обязательные поля.')
-    else if (data) { setManagedEvents(current => [...current, data as ManagedEvent].sort((a,b) => a.starts_at.localeCompare(b.starts_at))); setEventDraft({ title: '', description: '', starts_at: '', ends_at: '', location: 'Асбест', capacity: '', status: 'draft' }); setEventFormMessage(eventDraft.status === 'published' ? 'Мероприятие опубликовано и появится в афише.' : 'Черновик мероприятия сохранён.') }
+    else if (data) { setManagedEvents(current => [...current, data as ManagedEvent].sort((a,b) => a.starts_at.localeCompare(b.starts_at))); setEventDraft({ title: '', description: '', starts_at: '', ends_at: '', location: 'Асбест', room: '', category: '', age_limit: '', price_label: 'Бесплатно', capacity: '', status: 'draft' }); setEventFormMessage('Заявка отправлена администратору на согласование.') }
     setEventSaving(false)
   }
   const handleProfileSave = async (event: FormEvent<HTMLFormElement>) => {
@@ -303,6 +306,9 @@ export default function App() {
     else setNotice('')
   }
 
+  const requestToken = new URLSearchParams(window.location.search).get('request')
+  if (requestToken) return <EventRequestForm token={requestToken} />
+
   return (
     <div className="app-shell">
       <header className="site-header">
@@ -410,7 +416,7 @@ export default function App() {
               <section className="organizer-tools">
                 <div className="section-kicker">РАБОЧЕЕ ПРОСТРАНСТВО</div>
                 <h3>Мероприятия центра</h3>
-                <p className="organizer-hint">Создавай события для афиши. Черновик виден только тебе, опубликованное мероприятие доступно участникам.</p>
+                <p className="organizer-hint">Отправляй мероприятия на согласование. После проверки администратор добавит утверждённые события в общую афишу.</p>
                 <form className="organizer-form" onSubmit={handleEventCreate}>
                   <label>Название мероприятия<input required maxLength={140} value={eventDraft.title} onChange={e => setEventDraft(v => ({ ...v, title: e.target.value }))} placeholder="Например, творческая встреча" /></label>
                   <label>Описание<textarea rows={3} maxLength={3000} value={eventDraft.description} onChange={e => setEventDraft(v => ({ ...v, description: e.target.value }))} placeholder="Расскажи, что будет происходить" /></label>
@@ -422,21 +428,32 @@ export default function App() {
                     <label>Место проведения<input maxLength={180} value={eventDraft.location} onChange={e => setEventDraft(v => ({ ...v, location: e.target.value }))} placeholder="Адрес или площадка" /></label>
                     <label>Количество мест<input type="number" min="1" step="1" value={eventDraft.capacity} onChange={e => setEventDraft(v => ({ ...v, capacity: e.target.value }))} placeholder="Без ограничения" /></label>
                   </div>
-                  <label>Статус публикации<select value={eventDraft.status} onChange={e => setEventDraft(v => ({ ...v, status: e.target.value as EventDraft['status'] }))}><option value="draft">Сохранить как черновик</option><option value="published">Опубликовать в афише</option></select></label>
+                  <div className="organizer-fields">
+                    <label>Направление<select value={eventDraft.category} onChange={e => setEventDraft(v => ({ ...v, category: e.target.value }))}><option value="">Выбери направление</option><option>Творчество</option><option>Обучение</option><option>Здоровье</option><option>Общение</option><option>Детям и семье</option><option>Другое</option></select></label>
+                    <label>Зал / помещение<input maxLength={100} value={eventDraft.room} onChange={e => setEventDraft(v => ({ ...v, room: e.target.value }))} placeholder="Например, большой зал" /></label>
+                  </div>
+                  <div className="organizer-fields">
+                    <label>Возраст участников<input maxLength={40} value={eventDraft.age_limit} onChange={e => setEventDraft(v => ({ ...v, age_limit: e.target.value }))} placeholder="Например, 16+" /></label>
+                    <label>Стоимость<input maxLength={80} value={eventDraft.price_label} onChange={e => setEventDraft(v => ({ ...v, price_label: e.target.value }))} placeholder="Бесплатно / 500 ₽" /></label>
+                  </div>
+                  <div className="organizer-hint">После сохранения мероприятие останется черновиком до проверки администратором.</div>
                   {eventFormError && <div className="auth-feedback error" role="alert">{eventFormError}</div>}
                   {eventFormMessage && <div className="auth-feedback success" role="status">{eventFormMessage}</div>}
                   <button className="button-primary account-save" type="submit" disabled={eventSaving}>{eventSaving ? 'Сохраняем…' : 'Сохранить мероприятие'} <ArrowRight size={16}/></button>
                 </form>
                 <div className="managed-events">
                   <h4>Мои мероприятия</h4>
-                  {managedEvents.length === 0 ? <p className="organizer-hint">Пока мероприятий нет.</p> : managedEvents.map(item => <div className="managed-event" key={item.id}><div><strong>{item.title}</strong><span>{new Date(item.starts_at).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })} · {item.location || 'Место не указано'}</span></div><small className={item.status === 'published' ? 'published' : ''}>{item.status === 'published' ? 'Опубликовано' : item.status === 'draft' ? 'Черновик' : 'Отменено'}</small></div>)}
+                  {managedEvents.length === 0 ? <p className="organizer-hint">Пока мероприятий нет.</p> : managedEvents.map(item => <div className="managed-event" key={item.id}><div><strong>{item.title}</strong><span>{new Date(item.starts_at).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })} · {item.location || 'Место не указано'}</span></div><small className={item.status === 'published' || item.status === 'approved' ? 'published' : ''}>{item.status === 'approved' ? 'Утверждено' : item.status === 'pending' ? 'На согласовании' : item.status === 'rejected' ? 'Отклонено' : item.status === 'published' ? 'Опубликовано' : item.status === 'draft' ? 'Черновик' : 'Отменено'}</small></div>)}
                 </div>
               </section>
             )}
+            {['Модератор', 'Администратор', 'Суперадминистратор'].includes(accountRole) && <button type="button" className="button-primary schedule-open-button" onClick={() => setScheduleOpen(true)}><CalendarDays size={16}/> Управление расписанием</button>}
             <div className="account-footer"><span>Управление учётной записью</span><button type="button" onClick={async () => { await handleSignOut(); setAccountOpen(false) }}><LogOut size={15} />Выйти</button></div>
           </section>
         </div>
       )}
+
+      {scheduleOpen && ['Модератор', 'Администратор', 'Суперадминистратор'].includes(accountRole) && <ScheduleAdmin onClose={() => setScheduleOpen(false)} />}
 
       {authOpen && (
         <div className="auth-backdrop" role="presentation" onMouseDown={(event) => {
