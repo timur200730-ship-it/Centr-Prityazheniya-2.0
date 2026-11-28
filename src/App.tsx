@@ -9,6 +9,8 @@ type Section = 'Главная' | 'Афиша' | 'Сообщества' | 'Ра�
 type ProfileDraft = { display_name: string; bio: string; city: string; interests: string; visibility: 'community' | 'private' }
 type EventItem = { id: string; title: string; description: string; starts_at: string; ends_at: string | null; location: string; capacity: number | null }
 type ClubItem = { id: string; name: string; summary: string; description: string; city: string }
+type ManagedEvent = { id: string; title: string; starts_at: string; location: string; status: 'draft' | 'published' | 'cancelled' }
+type EventDraft = { title: string; description: string; starts_at: string; ends_at: string; location: string; capacity: string; status: 'draft' | 'published' }
 
 const nav: Section[] = ['Главная', 'Афиша', 'Сообщества', 'Развитие', 'О центре']
 
@@ -53,6 +55,11 @@ export default function App() {
   const [myEventIds, setMyEventIds] = useState<string[]>([])
   const [myClubIds, setMyClubIds] = useState<string[]>([])
   const [actionBusy, setActionBusy] = useState<string | null>(null)
+  const [managedEvents, setManagedEvents] = useState<ManagedEvent[]>([])
+  const [eventSaving, setEventSaving] = useState(false)
+  const [eventFormError, setEventFormError] = useState('')
+  const [eventFormMessage, setEventFormMessage] = useState('')
+  const [eventDraft, setEventDraft] = useState<EventDraft>({ title: '', description: '', starts_at: '', ends_at: '', location: 'Асбест', capacity: '', status: 'draft' })
 
   useEffect(() => {
     if (!supabase) return
@@ -94,7 +101,6 @@ export default function App() {
           visibility: p.visibility === 'private' ? 'private' : 'community',
         })
       }
-      const role = rolesResult.data?.[0]?.role
       const labels: Record<string, string> = {
         member: 'Участник',
         club_leader: 'Руководитель сообщества',
@@ -103,7 +109,12 @@ export default function App() {
         administrator: 'Администратор',
         super_admin: 'Суперадминистратор',
       }
-      setAccountRole(role ? (labels[role] ?? 'Участник') : 'Участник')
+      // У пользователя может быть несколько ролей. Выбираем наиболее привилегированную,
+      // чтобы роль member не скрывала доступ организатора или сотрудника.
+      const rolePriority = ['super_admin', 'administrator', 'moderator', 'organizer', 'club_leader', 'member']
+      const userRoles = (rolesResult.data ?? []).map(row => row.role as string)
+      const primaryRole = rolePriority.find(role => userRoles.includes(role))
+      setAccountRole(primaryRole ? (labels[primaryRole] ?? 'Участник') : 'Участник')
     }).catch(() => {
       if (active) setProfileError('Не удалось загрузить профиль. Проверь подключение и попробуй ещё раз.')
     }).finally(() => {
@@ -152,6 +163,35 @@ export default function App() {
     if (error) setNotice(error.code === '23505' ? 'Заявка в это сообщество уже отправлена.' : 'Не удалось отправить заявку. Попробуй позже.')
     else { setMyClubIds(current => [...current, clubId]); setNotice('Заявка отправлена. После рассмотрения появится статус участия.') }
     setActionBusy(null)
+  }
+  useEffect(() => {
+    const client = supabase
+    const canManage = ['Организатор', 'Модератор', 'Администратор', 'Суперадминистратор'].includes(accountRole)
+    if (!client || !user || !accountOpen || !canManage) return
+    let alive = true
+    client.from('events').select('id, title, starts_at, location, status').eq('created_by', user.id).order('starts_at', { ascending: true })
+      .then(({ data, error }) => {
+        if (!alive) return
+        if (error) setEventFormError('Не удалось загрузить твои мероприятия.')
+        else setManagedEvents((data ?? []) as ManagedEvent[])
+      })
+    return () => { alive = false }
+  }, [user, accountOpen, accountRole])
+
+  const handleEventCreate = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!supabase || !user) return
+    setEventSaving(true); setEventFormError(''); setEventFormMessage('')
+    const startsAt = new Date(eventDraft.starts_at)
+    const endsAt = eventDraft.ends_at ? new Date(eventDraft.ends_at) : null
+    if (!eventDraft.title.trim() || !eventDraft.starts_at || Number.isNaN(startsAt.getTime())) { setEventFormError('Укажи название и корректную дату начала.'); setEventSaving(false); return }
+    if (endsAt && (Number.isNaN(endsAt.getTime()) || endsAt <= startsAt)) { setEventFormError('Время окончания должно быть позже начала.'); setEventSaving(false); return }
+    const capacity = eventDraft.capacity.trim() ? Number(eventDraft.capacity) : null
+    if (capacity !== null && (!Number.isInteger(capacity) || capacity < 1)) { setEventFormError('Количество мест должно быть целым числом больше нуля.'); setEventSaving(false); return }
+    const { data, error } = await supabase.from('events').insert({ title: eventDraft.title.trim(), description: eventDraft.description.trim(), starts_at: startsAt.toISOString(), ends_at: endsAt?.toISOString() ?? null, location: eventDraft.location.trim(), capacity, status: eventDraft.status, created_by: user.id }).select('id, title, starts_at, location, status').single()
+    if (error) setEventFormError('Не удалось сохранить мероприятие. Проверь права организатора и обязательные поля.')
+    else if (data) { setManagedEvents(current => [...current, data as ManagedEvent].sort((a,b) => a.starts_at.localeCompare(b.starts_at))); setEventDraft({ title: '', description: '', starts_at: '', ends_at: '', location: 'Асбест', capacity: '', status: 'draft' }); setEventFormMessage(eventDraft.status === 'published' ? 'Мероприятие опубликовано и появится в афише.' : 'Черновик мероприятия сохранён.') }
+    setEventSaving(false)
   }
   const handleProfileSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -365,6 +405,33 @@ export default function App() {
                 {profileMessage && <div className="auth-feedback success" role="status">{profileMessage}</div>}
                 <button className="button-primary account-save" type="submit" disabled={profileSaving}><Save size={16} />{profileSaving ? 'Сохраняем…' : 'Сохранить изменения'}</button>
               </form>
+            )}
+            {['Организатор', 'Модератор', 'Администратор', 'Суперадминистратор'].includes(accountRole) && (
+              <section className="organizer-tools">
+                <div className="section-kicker">РАБОЧЕЕ ПРОСТРАНСТВО</div>
+                <h3>Мероприятия центра</h3>
+                <p className="organizer-hint">Создавай события для афиши. Черновик виден только тебе, опубликованное мероприятие доступно участникам.</p>
+                <form className="organizer-form" onSubmit={handleEventCreate}>
+                  <label>Название мероприятия<input required maxLength={140} value={eventDraft.title} onChange={e => setEventDraft(v => ({ ...v, title: e.target.value }))} placeholder="Например, творческая встреча" /></label>
+                  <label>Описание<textarea rows={3} maxLength={3000} value={eventDraft.description} onChange={e => setEventDraft(v => ({ ...v, description: e.target.value }))} placeholder="Расскажи, что будет происходить" /></label>
+                  <div className="organizer-fields">
+                    <label>Начало<input required type="datetime-local" value={eventDraft.starts_at} onChange={e => setEventDraft(v => ({ ...v, starts_at: e.target.value }))} /></label>
+                    <label>Окончание<input type="datetime-local" value={eventDraft.ends_at} onChange={e => setEventDraft(v => ({ ...v, ends_at: e.target.value }))} /></label>
+                  </div>
+                  <div className="organizer-fields">
+                    <label>Место проведения<input maxLength={180} value={eventDraft.location} onChange={e => setEventDraft(v => ({ ...v, location: e.target.value }))} placeholder="Адрес или площадка" /></label>
+                    <label>Количество мест<input type="number" min="1" step="1" value={eventDraft.capacity} onChange={e => setEventDraft(v => ({ ...v, capacity: e.target.value }))} placeholder="Без ограничения" /></label>
+                  </div>
+                  <label>Статус публикации<select value={eventDraft.status} onChange={e => setEventDraft(v => ({ ...v, status: e.target.value as EventDraft['status'] }))}><option value="draft">Сохранить как черновик</option><option value="published">Опубликовать в афише</option></select></label>
+                  {eventFormError && <div className="auth-feedback error" role="alert">{eventFormError}</div>}
+                  {eventFormMessage && <div className="auth-feedback success" role="status">{eventFormMessage}</div>}
+                  <button className="button-primary account-save" type="submit" disabled={eventSaving}>{eventSaving ? 'Сохраняем…' : 'Сохранить мероприятие'} <ArrowRight size={16}/></button>
+                </form>
+                <div className="managed-events">
+                  <h4>Мои мероприятия</h4>
+                  {managedEvents.length === 0 ? <p className="organizer-hint">Пока мероприятий нет.</p> : managedEvents.map(item => <div className="managed-event" key={item.id}><div><strong>{item.title}</strong><span>{new Date(item.starts_at).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })} · {item.location || 'Место не указано'}</span></div><small className={item.status === 'published' ? 'published' : ''}>{item.status === 'published' ? 'Опубликовано' : item.status === 'draft' ? 'Черновик' : 'Отменено'}</small></div>)}
+                </div>
+              </section>
             )}
             <div className="account-footer"><span>Управление учётной записью</span><button type="button" onClick={async () => { await handleSignOut(); setAccountOpen(false) }}><LogOut size={15} />Выйти</button></div>
           </section>
