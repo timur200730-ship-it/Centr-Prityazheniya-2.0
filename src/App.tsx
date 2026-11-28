@@ -7,6 +7,8 @@ import {
 
 type Section = 'Главная' | 'Афиша' | 'Сообщества' | 'Развитие' | 'О центре'
 type ProfileDraft = { display_name: string; bio: string; city: string; interests: string; visibility: 'community' | 'private' }
+type EventItem = { id: string; title: string; description: string; starts_at: string; ends_at: string | null; location: string; capacity: number | null }
+type ClubItem = { id: string; name: string; summary: string; description: string; city: string }
 
 const nav: Section[] = ['Главная', 'Афиша', 'Сообщества', 'Развитие', 'О центре']
 
@@ -44,6 +46,13 @@ export default function App() {
   const [profileMessage, setProfileMessage] = useState('')
   const [accountRole, setAccountRole] = useState('Участник')
   const [profileDraft, setProfileDraft] = useState<ProfileDraft>({ display_name: '', bio: '', city: 'Асбест', interests: '', visibility: 'community' })
+  const [events, setEvents] = useState<EventItem[]>([])
+  const [clubs, setClubs] = useState<ClubItem[]>([])
+  const [catalogLoading, setCatalogLoading] = useState(false)
+  const [catalogError, setCatalogError] = useState('')
+  const [myEventIds, setMyEventIds] = useState<string[]>([])
+  const [myClubIds, setMyClubIds] = useState<string[]>([])
+  const [actionBusy, setActionBusy] = useState<string | null>(null)
 
   useEffect(() => {
     if (!supabase) return
@@ -103,6 +112,47 @@ export default function App() {
     return () => { active = false }
   }, [user])
 
+  useEffect(() => {
+    const client = supabase
+    if (!client || (active !== 'Афиша' && active !== 'Сообщества')) return
+    let alive = true
+    setCatalogLoading(true); setCatalogError('')
+    const load = async () => {
+      if (active === 'Афиша') {
+        const { data, error } = await client.from('events').select('id, title, description, starts_at, ends_at, location, capacity').eq('status', 'published').gte('starts_at', new Date().toISOString()).order('starts_at', { ascending: true })
+        if (error) throw error
+        if (alive) setEvents((data ?? []) as EventItem[])
+        if (user) { const { data: rows, error: e } = await client.from('event_registrations').select('event_id').eq('user_id', user.id).eq('status', 'registered'); if (e) throw e; if (alive) setMyEventIds((rows ?? []).map(row => row.event_id)) }
+        else if (alive) setMyEventIds([])
+      } else {
+        const { data, error } = await client.from('clubs').select('id, name, summary, description, city').eq('status', 'published').order('name', { ascending: true })
+        if (error) throw error
+        if (alive) setClubs((data ?? []) as ClubItem[])
+        if (user) { const { data: rows, error: e } = await client.from('club_memberships').select('club_id').eq('user_id', user.id).in('status', ['pending', 'active']); if (e) throw e; if (alive) setMyClubIds((rows ?? []).map(row => row.club_id)) }
+        else if (alive) setMyClubIds([])
+      }
+    }
+    load().catch(() => { if (alive) setCatalogError('Не удалось загрузить данные. Попробуй обновить страницу.') }).finally(() => { if (alive) setCatalogLoading(false) })
+    return () => { alive = false }
+  }, [active, user])
+
+  const registerForEvent = async (eventId: string) => {
+    if (!user || !supabase) { openAuth('login'); return }
+    setActionBusy(eventId)
+    const { error } = await supabase.from('event_registrations').insert({ event_id: eventId, user_id: user.id, status: 'registered' })
+    if (error) setNotice(error.code === '23505' ? 'Ты уже записан на это мероприятие.' : 'Не удалось записаться. Возможно, регистрация уже закрыта.')
+    else { setMyEventIds(current => [...current, eventId]); setNotice('Ты записан на мероприятие!') }
+    setActionBusy(null)
+  }
+
+  const requestClubMembership = async (clubId: string) => {
+    if (!user || !supabase) { openAuth('login'); return }
+    setActionBusy(clubId)
+    const { error } = await supabase.from('club_memberships').insert({ club_id: clubId, user_id: user.id, status: 'pending' })
+    if (error) setNotice(error.code === '23505' ? 'Заявка в это сообщество уже отправлена.' : 'Не удалось отправить заявку. Попробуй позже.')
+    else { setMyClubIds(current => [...current, clubId]); setNotice('Заявка отправлена. После рассмотрения появится статус участия.') }
+    setActionBusy(null)
+  }
   const handleProfileSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!supabase || !user) return
@@ -252,6 +302,17 @@ export default function App() {
 
         {notice && <div className="notice" role="status"><span>{notice}</span><div className="notice-actions">{user && <button className="notice-signout" onClick={handleSignOut}>Выйти</button>}<button onClick={() => setNotice('')} aria-label="Закрыть уведомление"><X size={16} /></button></div></div>}
 
+        {active === 'Афиша' && <section className="catalog-section section-wrap">
+          <div className="section-kicker">ВСТРЕЧИ И СОБЫТИЯ</div><div className="catalog-heading"><div><h2>Афиша центра</h2><p>Выбирай то, что откликается, и присоединяйся.</p></div><span className="catalog-count">{events.length} событий</span></div>
+          {catalogLoading ? <div className="catalog-empty">Загружаем афишу…</div> : catalogError ? <div className="catalog-empty">{catalogError}</div> : events.length === 0 ? <div className="catalog-empty"><CalendarDays size={28}/><strong>Скоро здесь появятся события</strong><span>Мы готовим программу встреч и мероприятий. Загляни чуть позже.</span></div> : <div className="catalog-grid">{events.map(item => <article className="catalog-card" key={item.id}><div className="catalog-card-top"><span className="catalog-tag">МЕРОПРИЯТИЕ</span><CalendarDays size={19}/></div><h3>{item.title}</h3><p>{item.description || 'Подробности мероприятия скоро появятся.'}</p><div className="catalog-meta"><span><CalendarDays size={15}/>{new Date(item.starts_at).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })}</span>{item.location && <span><MapPin size={15}/>{item.location}</span>}</div><button className="button-primary catalog-action" disabled={actionBusy === item.id || myEventIds.includes(item.id)} onClick={() => registerForEvent(item.id)}>{actionBusy === item.id ? 'Отправляем…' : myEventIds.includes(item.id) ? 'Ты записан' : 'Записаться'} {!myEventIds.includes(item.id) && <ArrowRight size={16}/>}</button></article>)}</div>}
+        </section>}
+        {active === 'Сообщества' && <section className="catalog-section section-wrap">
+          <div className="section-kicker">ЛЮДИ ПО ИНТЕРЕСАМ</div><div className="catalog-heading"><div><h2>Сообщества</h2><p>Найди своё окружение или открой новое направление.</p></div><span className="catalog-count">{clubs.length} сообществ</span></div>
+          {catalogLoading ? <div className="catalog-empty">Загружаем сообщества…</div> : catalogError ? <div className="catalog-empty">{catalogError}</div> : clubs.length === 0 ? <div className="catalog-empty"><Users size={28}/><strong>Сообщества скоро откроются</strong><span>Здесь появятся клубы, инициативы и группы по интересам.</span></div> : <div className="catalog-grid">{clubs.map(item => <article className="catalog-card club-card" key={item.id}><div className="catalog-card-top"><span className="catalog-tag">СООБЩЕСТВО</span><Users size={19}/></div><h3>{item.name}</h3><p>{item.summary || item.description || 'Описание сообщества скоро появится.'}</p><div className="catalog-meta"><span><MapPin size={15}/>{item.city || 'Асбест'}</span></div><button className="button-primary catalog-action" disabled={actionBusy === item.id || myClubIds.includes(item.id)} onClick={() => requestClubMembership(item.id)}>{actionBusy === item.id ? 'Отправляем…' : myClubIds.includes(item.id) ? 'Заявка отправлена' : 'Присоединиться'} {!myClubIds.includes(item.id) && <ArrowRight size={16}/>}</button></article>)}</div>}
+        </section>}
+        {active === 'Развитие' && <section className="catalog-section section-wrap"><div className="section-kicker">УЧИСЬ И ПРОБУЙ НОВОЕ</div><h2>Развитие</h2><div className="catalog-empty"><Sprout size={28}/><strong>Пространство возможностей</strong><span>Здесь появятся программы, мастер-классы и образовательные направления центра.</span></div></section>}
+        {active === 'О центре' && <section className="catalog-section section-wrap"><div className="section-kicker">НАША ИСТОРИЯ И ЦЕННОСТИ</div><h2>О центре</h2><div className="catalog-empty"><HeartHandshake size={28}/><strong>Место, где можно быть собой</strong><span>Мы создаём открытое пространство для общения, творчества, развития и взаимной поддержки в Асбесте.</span></div></section>}
+        {active === 'Главная' && <>
         <section className="intro-section section-wrap">
           <div className="section-kicker">РАДЫ ТЕБЯ ВИДЕТЬ</div>
           <div className="intro-grid"><h2>Не просто место.<br /><em>Люди и возможности.</em></h2><p>«Центр Притяжения» объединяет тех, кому важно общение, развитие, творчество и поддержка. Здесь рождаются идеи, складываются знакомства и появляются новые маршруты.</p></div>
@@ -272,6 +333,7 @@ export default function App() {
         <section className="invitation section-wrap">
           <div className="invitation-card"><div className="invitation-mark"><Sparkles size={24} /></div><div><div className="section-kicker">ТВОЙ ПУТЬ МОЖЕТ НАЧАТЬСЯ ЗДЕСЬ</div><h2>Не обязательно знать,<br /><em>с чего начать.</em></h2><p>Можно просто познакомиться с нами. Посмотреть направления, выбрать встречу или задать вопрос.</p></div><button className="button-primary" onClick={() => setNotice('Контакты и способы связи добавим после согласования актуальных данных центра.')}>Связаться с центром <ArrowRight size={17} /></button></div>
         </section>
+        </>}
       </main>
 
       <footer className="site-footer">
