@@ -78,7 +78,7 @@ export default function App() {
   const [eventSaving, setEventSaving] = useState(false)
   const [eventFormError, setEventFormError] = useState('')
   const [eventFormMessage, setEventFormMessage] = useState('')
-  const [eventDraft, setEventDraft] = useState<EventDraft>({ title: '', description: '', starts_at: '', ends_at: '', location: 'Асбест', capacity: '', status: 'draft' })
+  const [eventDraft, setEventDraft] = useState<EventDraft>({ title: '', description: '', starts_at: '', ends_at: '', location: 'г. Асбест, ул. Уральская, 54', capacity: '', status: 'draft' })
 
   useEffect(() => {
     if (!supabase) return
@@ -209,7 +209,7 @@ export default function App() {
     if (capacity !== null && (!Number.isInteger(capacity) || capacity < 1)) { setEventFormError('Количество мест должно быть целым числом больше нуля.'); setEventSaving(false); return }
     const { data, error } = await supabase.from('events').insert({ title: eventDraft.title.trim(), description: eventDraft.description.trim(), starts_at: startsAt.toISOString(), ends_at: endsAt?.toISOString() ?? null, location: eventDraft.location.trim(), capacity, status: eventDraft.status, created_by: user.id }).select('id, title, starts_at, location, status').single()
     if (error) setEventFormError('Не удалось сохранить мероприятие. Проверь права организатора и обязательные поля.')
-    else if (data) { setManagedEvents(current => [...current, data as ManagedEvent].sort((a,b) => a.starts_at.localeCompare(b.starts_at))); setEventDraft({ title: '', description: '', starts_at: '', ends_at: '', location: 'Асбест', capacity: '', status: 'draft' }); setEventFormMessage(eventDraft.status === 'published' ? 'Мероприятие опубликовано и появится в афише.' : 'Черновик мероприятия сохранён.') }
+    else if (data) { setManagedEvents(current => [...current, data as ManagedEvent].sort((a,b) => a.starts_at.localeCompare(b.starts_at))); setEventDraft({ title: '', description: '', starts_at: '', ends_at: '', location: 'г. Асбест, ул. Уральская, 54', capacity: '', status: 'draft' }); setEventFormMessage(eventDraft.status === 'published' ? 'Мероприятие опубликовано и появится в афише.' : 'Черновик мероприятия сохранён.') }
     setEventSaving(false)
   }
   const handleProfileSave = async (event: FormEvent<HTMLFormElement>) => {
@@ -380,7 +380,7 @@ export default function App() {
           <div className="about-values"><article><strong>Люди</strong><span>Знакомства, поддержка и живое общение.</span></article><article><strong>Интересы</strong><span>Творчество, самопознание, движение и обучение.</span></article><article><strong>Инициативы</strong><span>Возможность предложить идею и собрать вокруг неё людей.</span></article></div>
           <div className="about-team"><div className="section-kicker">ВЕДУЩИЕ И МАСТЕРА</div><h3>Люди, которые наполняют центр</h3><p>В афишах и программах центра представлены ведущие и мастера разных направлений:</p><div className="about-people"><span>Елена Осинцева <small>нумерология, трансформационные игры</small></span><span>Тимур Хайретдинов <small>переговоры, шахматный клуб</small></span><span>Ирина Шиляева <small>макраме</small></span><span>Ирина Миронова <small>бумажная инженерия</small></span><span>Татьяна Мальцева <small>рисование</small></span><span>Екатерина Трегубова <small>вязание крючком</small></span><span>Наталья Зевакова <small>люневильская вышивка</small></span><span>Ольга Березина <small>группа здоровья</small></span><span>Светлана Мельникова <small>танцевальные занятия</small></span><span>Марина Акимова <small>медитация</small></span><span>Анна Ортюкова <small>массажные практики</small></span><span>Ольга Пономарева <small>питание и тест состава тела</small></span></div></div>
           <div className="about-rules"><div className="section-kicker">НАШИ ДОГОВОРЁННОСТИ</div><h3>Чтобы каждому было комфортно</h3><ul><li>Уважать друг друга, личные границы и право каждого на собственное мнение.</li><li>Бережно относиться к личной информации и не распространять чужие истории без согласия.</li><li>Приходить на занятия вовремя и заранее предупреждать организатора, если планы изменились.</li><li>Уточнять условия, стоимость, возрастные ограничения и наличие мест в анонсе конкретного события.</li><li>Для участия ребёнка согласовывать запись и сопровождение со взрослым.</li></ul></div>
-          <div className="about-contact"><div><div className="section-kicker">МЫ НА СВЯЗИ</div><h3>До встречи в Центре Притяжения</h3><p>Мы находимся в Асбесте. Актуальные анонсы, новости и способы связаться с организаторами — в нашей группе ВКонтакте.</p></div><a className="button-primary" href="https://vk.ru/centrpritiyzheniy" target="_blank" rel="noreferrer">Открыть группу ВКонтакте <ArrowRight size={16}/></a></div>
+          <div className="about-contact"><div><div className="section-kicker">МЫ НА СВЯЗИ</div><h3>До встречи в Центре Притяжения</h3><p>Наш адрес: г. Асбест, ул. Уральская, 54. Актуальные анонсы, новости и способы связаться с организаторами — в нашей группе ВКонтакте.</p></div><a className="button-primary" href="https://vk.ru/centrpritiyzheniy" target="_blank" rel="noreferrer">Открыть группу ВКонтакте <ArrowRight size={16}/></a></div>
         </section>}
         {active === 'Главная' && <>
         <section className="intro-section section-wrap">
@@ -407,7 +407,7 @@ export default function App() {
       </main>
 
       <footer className="site-footer">
-        <div className="footer-top"><a className="brand footer-brand" href="#top"><span className="brand-mark"><span /></span><span className="brand-copy"><strong>Центр Притяжения</strong><small>Притягиваем возможности. Вдохновляем на рост.</small></span></a><div className="footer-location"><MapPin size={17} /> Асбест, Свердловская область</div></div>
+        <div className="footer-top"><a className="brand footer-brand" href="#top"><span className="brand-mark"><span /></span><span className="brand-copy"><strong>Центр Притяжения</strong><small>Притягиваем возможности. Вдохновляем на рост.</small></span></a><div className="footer-location"><MapPin size={17} /> г. Асбест, ул. Уральская, 54</div></div>
         <div className="footer-bottom"><span>© Центр Притяжения</span><span>Тепло. Доверие. Развитие.</span><span>Сделано с заботой о людях</span></div>
       </footer>
 
