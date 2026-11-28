@@ -113,21 +113,22 @@ export default function App() {
   }, [user])
 
   useEffect(() => {
-    if (!supabase || (active !== 'Афиша' && active !== 'Сообщества')) return
+    const client = supabase
+    if (!client || (active !== 'Афиша' && active !== 'Сообщества')) return
     let alive = true
     setCatalogLoading(true); setCatalogError('')
     const load = async () => {
       if (active === 'Афиша') {
-        const { data, error } = await supabase.from('events').select('id, title, description, starts_at, ends_at, location, capacity').eq('status', 'published').gte('starts_at', new Date().toISOString()).order('starts_at', { ascending: true })
+        const { data, error } = await client.from('events').select('id, title, description, starts_at, ends_at, location, capacity').eq('status', 'published').gte('starts_at', new Date().toISOString()).order('starts_at', { ascending: true })
         if (error) throw error
         if (alive) setEvents((data ?? []) as EventItem[])
-        if (user) { const { data: rows, error: e } = await supabase.from('event_registrations').select('event_id').eq('user_id', user.id).eq('status', 'registered'); if (e) throw e; if (alive) setMyEventIds((rows ?? []).map(row => row.event_id)) }
+        if (user) { const { data: rows, error: e } = await client.from('event_registrations').select('event_id').eq('user_id', user.id).eq('status', 'registered'); if (e) throw e; if (alive) setMyEventIds((rows ?? []).map(row => row.event_id)) }
         else if (alive) setMyEventIds([])
       } else {
-        const { data, error } = await supabase.from('clubs').select('id, name, summary, description, city').eq('status', 'published').order('name', { ascending: true })
+        const { data, error } = await client.from('clubs').select('id, name, summary, description, city').eq('status', 'published').order('name', { ascending: true })
         if (error) throw error
         if (alive) setClubs((data ?? []) as ClubItem[])
-        if (user) { const { data: rows, error: e } = await supabase.from('club_memberships').select('club_id').eq('user_id', user.id).in('status', ['pending', 'active']); if (e) throw e; if (alive) setMyClubIds((rows ?? []).map(row => row.club_id)) }
+        if (user) { const { data: rows, error: e } = await client.from('club_memberships').select('club_id').eq('user_id', user.id).in('status', ['pending', 'active']); if (e) throw e; if (alive) setMyClubIds((rows ?? []).map(row => row.club_id)) }
         else if (alive) setMyClubIds([])
       }
     }
