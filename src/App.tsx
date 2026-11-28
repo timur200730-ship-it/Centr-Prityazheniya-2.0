@@ -416,7 +416,7 @@ export default function App() {
               <section className="organizer-tools">
                 <div className="section-kicker">РАБОЧЕЕ ПРОСТРАНСТВО</div>
                 <h3>Мероприятия центра</h3>
-                <p className="organizer-hint">Создавай события для афиши. Черновик виден только тебе, опубликованное мероприятие доступно участникам.</p>
+                <p className="organizer-hint">Отправляй мероприятия на согласование. После проверки администратор добавит утверждённые события в общую афишу.</p>
                 <form className="organizer-form" onSubmit={handleEventCreate}>
                   <label>Название мероприятия<input required maxLength={140} value={eventDraft.title} onChange={e => setEventDraft(v => ({ ...v, title: e.target.value }))} placeholder="Например, творческая встреча" /></label>
                   <label>Описание<textarea rows={3} maxLength={3000} value={eventDraft.description} onChange={e => setEventDraft(v => ({ ...v, description: e.target.value }))} placeholder="Расскажи, что будет происходить" /></label>
