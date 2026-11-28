@@ -1,5 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { supabase } from './lib/supabase'
+import EventRequestForm from './components/EventRequestForm'
+import ScheduleAdmin from './components/ScheduleAdmin'
 import {
   ArrowRight, CalendarDays, Users, Sprout, HeartHandshake, Menu,
   X, MapPin, Sparkles, ShieldCheck, ChevronRight, CircleUserRound, Save, Mail, LogOut
@@ -42,6 +44,7 @@ export default function App() {
   const [authMessage, setAuthMessage] = useState('')
   const [authError, setAuthError] = useState('')
   const [accountOpen, setAccountOpen] = useState(false)
+  const [scheduleOpen, setScheduleOpen] = useState(false)
   const [profileLoading, setProfileLoading] = useState(false)
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileError, setProfileError] = useState('')
@@ -188,9 +191,9 @@ export default function App() {
     if (endsAt && (Number.isNaN(endsAt.getTime()) || endsAt <= startsAt)) { setEventFormError('Время окончания должно быть позже начала.'); setEventSaving(false); return }
     const capacity = eventDraft.capacity.trim() ? Number(eventDraft.capacity) : null
     if (capacity !== null && (!Number.isInteger(capacity) || capacity < 1)) { setEventFormError('Количество мест должно быть целым числом больше нуля.'); setEventSaving(false); return }
-    const { data, error } = await supabase.from('events').insert({ title: eventDraft.title.trim(), description: eventDraft.description.trim(), starts_at: startsAt.toISOString(), ends_at: endsAt?.toISOString() ?? null, location: eventDraft.location.trim(), capacity, status: eventDraft.status, created_by: user.id }).select('id, title, starts_at, location, status').single()
+    const { data, error } = await supabase.from('events').insert({ title: eventDraft.title.trim(), description: eventDraft.description.trim(), starts_at: startsAt.toISOString(), ends_at: endsAt?.toISOString() ?? null, location: eventDraft.location.trim(), capacity, status: 'draft', created_by: user.id }).select('id, title, starts_at, location, status').single()
     if (error) setEventFormError('Не удалось сохранить мероприятие. Проверь права организатора и обязательные поля.')
-    else if (data) { setManagedEvents(current => [...current, data as ManagedEvent].sort((a,b) => a.starts_at.localeCompare(b.starts_at))); setEventDraft({ title: '', description: '', starts_at: '', ends_at: '', location: 'Асбест', capacity: '', status: 'draft' }); setEventFormMessage(eventDraft.status === 'published' ? 'Мероприятие опубликовано и появится в афише.' : 'Черновик мероприятия сохранён.') }
+    else if (data) { setManagedEvents(current => [...current, data as ManagedEvent].sort((a,b) => a.starts_at.localeCompare(b.starts_at))); setEventDraft({ title: '', description: '', starts_at: '', ends_at: '', location: 'Асбест', capacity: '', status: 'draft' }); setEventFormMessage('Черновик отправлен на согласование администратору.') }
     setEventSaving(false)
   }
   const handleProfileSave = async (event: FormEvent<HTMLFormElement>) => {
@@ -302,6 +305,9 @@ export default function App() {
     if (item !== 'Главная') setNotice(`Раздел «${item}» подготовлен к наполнению на следующем этапе.`)
     else setNotice('')
   }
+
+  const requestToken = new URLSearchParams(window.location.search).get('request')
+  if (requestToken) return <EventRequestForm token={requestToken} />
 
   return (
     <div className="app-shell">
@@ -422,7 +428,7 @@ export default function App() {
                     <label>Место проведения<input maxLength={180} value={eventDraft.location} onChange={e => setEventDraft(v => ({ ...v, location: e.target.value }))} placeholder="Адрес или площадка" /></label>
                     <label>Количество мест<input type="number" min="1" step="1" value={eventDraft.capacity} onChange={e => setEventDraft(v => ({ ...v, capacity: e.target.value }))} placeholder="Без ограничения" /></label>
                   </div>
-                  <label>Статус публикации<select value={eventDraft.status} onChange={e => setEventDraft(v => ({ ...v, status: e.target.value as EventDraft['status'] }))}><option value="draft">Сохранить как черновик</option><option value="published">Опубликовать в афише</option></select></label>
+                  <div className="organizer-hint">После сохранения мероприятие останется черновиком до проверки администратором.</div>
                   {eventFormError && <div className="auth-feedback error" role="alert">{eventFormError}</div>}
                   {eventFormMessage && <div className="auth-feedback success" role="status">{eventFormMessage}</div>}
                   <button className="button-primary account-save" type="submit" disabled={eventSaving}>{eventSaving ? 'Сохраняем…' : 'Сохранить мероприятие'} <ArrowRight size={16}/></button>
@@ -433,10 +439,13 @@ export default function App() {
                 </div>
               </section>
             )}
+            {['Модератор', 'Администратор', 'Суперадминистратор'].includes(accountRole) && <button type="button" className="button-primary schedule-open-button" onClick={() => setScheduleOpen(true)}><CalendarDays size={16}/> Управление расписанием</button>}
             <div className="account-footer"><span>Управление учётной записью</span><button type="button" onClick={async () => { await handleSignOut(); setAccountOpen(false) }}><LogOut size={15} />Выйти</button></div>
           </section>
         </div>
       )}
+
+      {scheduleOpen && ['Модератор', 'Администратор', 'Суперадминистратор'].includes(accountRole) && <ScheduleAdmin onClose={() => setScheduleOpen(false)} />}
 
       {authOpen && (
         <div className="auth-backdrop" role="presentation" onMouseDown={(event) => {
