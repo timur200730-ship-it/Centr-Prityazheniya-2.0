@@ -23,7 +23,8 @@ create table if not exists public.organizer_invite_links (
 
 create table if not exists public.event_submissions (
   id uuid primary key default gen_random_uuid(),
-  invite_id uuid not null references public.organizer_invite_links(id),
+  invite_id uuid references public.organizer_invite_links(id),
+  submitted_by uuid references auth.users(id),
   title text not null check (char_length(title) between 2 and 160),
   description text not null default '',
   category text not null default '',
@@ -54,6 +55,8 @@ create index if not exists event_submissions_starts_at_idx
 
 alter table public.organizer_invite_links enable row level security;
 alter table public.event_submissions enable row level security;
+alter table public.event_submissions alter column invite_id drop not null;
+alter table public.event_submissions add column if not exists submitted_by uuid references auth.users(id);
 
 drop policy if exists "Staff manage organizer invite links" on public.organizer_invite_links;
 create policy "Staff manage organizer invite links"
@@ -66,6 +69,22 @@ create policy "Staff manage event submissions"
   on public.event_submissions for all to authenticated
   using (public.is_staff((select auth.uid())))
   with check (public.is_staff((select auth.uid())));
+
+drop policy if exists "Organizers submit own event requests" on public.event_submissions;
+create policy "Organizers submit own event requests"
+  on public.event_submissions for insert to authenticated
+  with check (
+    submitted_by = (select auth.uid())
+    and status = 'pending'
+    and public.has_role((select auth.uid()), 'organizer'::public.app_role)
+  );
+drop policy if exists "Organizers read own event requests" on public.event_submissions;
+create policy "Organizers read own event requests"
+  on public.event_submissions for select to authenticated
+  using (
+    submitted_by = (select auth.uid())
+    and public.has_role((select auth.uid()), 'organizer'::public.app_role)
+  );
 
 -- Organizers may submit drafts only. Publication is reserved for staff moderation.
 drop policy if exists "Organizers create own events" on public.events;
