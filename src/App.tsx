@@ -9,6 +9,8 @@ type Section = 'Главная' | 'Афиша' | 'Сообщества' | 'Ра�
 type ProfileDraft = { display_name: string; bio: string; city: string; interests: string; visibility: 'community' | 'private' }
 type EventItem = { id: string; title: string; description: string; starts_at: string; ends_at: string | null; location: string; capacity: number | null }
 type ClubItem = { id: string; name: string; summary: string; description: string; city: string }
+type ManagedEvent = { id: string; title: string; starts_at: string; location: string; status: 'draft' | 'published' | 'cancelled' }
+type EventDraft = { title: string; description: string; starts_at: string; ends_at: string; location: string; capacity: string; status: 'draft' | 'published' }
 
 const nav: Section[] = ['Главная', 'Афиша', 'Сообщества', 'Развитие', 'О центре']
 
@@ -53,6 +55,11 @@ export default function App() {
   const [myEventIds, setMyEventIds] = useState<string[]>([])
   const [myClubIds, setMyClubIds] = useState<string[]>([])
   const [actionBusy, setActionBusy] = useState<string | null>(null)
+  const [managedEvents, setManagedEvents] = useState<ManagedEvent[]>([])
+  const [eventSaving, setEventSaving] = useState(false)
+  const [eventFormError, setEventFormError] = useState('')
+  const [eventFormMessage, setEventFormMessage] = useState('')
+  const [eventDraft, setEventDraft] = useState<EventDraft>({ title: '', description: '', starts_at: '', ends_at: '', location: 'Асбест', capacity: '', status: 'draft' })
 
   useEffect(() => {
     if (!supabase) return
@@ -152,6 +159,35 @@ export default function App() {
     if (error) setNotice(error.code === '23505' ? 'Заявка в это сообщество уже отправлена.' : 'Не удалось отправить заявку. Попробуй позже.')
     else { setMyClubIds(current => [...current, clubId]); setNotice('Заявка отправлена. После рассмотрения появится статус участия.') }
     setActionBusy(null)
+  }
+  useEffect(() => {
+    const client = supabase
+    const canManage = ['Организатор', 'Модератор', 'Администратор', 'Суперадминистратор'].includes(accountRole)
+    if (!client || !user || !accountOpen || !canManage) return
+    let alive = true
+    client.from('events').select('id, title, starts_at, location, status').eq('created_by', user.id).order('starts_at', { ascending: true })
+      .then(({ data, error }) => {
+        if (!alive) return
+        if (error) setEventFormError('Не удалось загрузить твои мероприятия.')
+        else setManagedEvents((data ?? []) as ManagedEvent[])
+      })
+    return () => { alive = false }
+  }, [user, accountOpen, accountRole])
+
+  const handleEventCreate = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!supabase || !user) return
+    setEventSaving(true); setEventFormError(''); setEventFormMessage('')
+    const startsAt = new Date(eventDraft.starts_at)
+    const endsAt = eventDraft.ends_at ? new Date(eventDraft.ends_at) : null
+    if (!eventDraft.title.trim() || !eventDraft.starts_at || Number.isNaN(startsAt.getTime())) { setEventFormError('Укажи название и корректную дату начала.'); setEventSaving(false); return }
+    if (endsAt && (Number.isNaN(endsAt.getTime()) || endsAt <= startsAt)) { setEventFormError('Время окончания должно быть позже начала.'); setEventSaving(false); return }
+    const capacity = eventDraft.capacity.trim() ? Number(eventDraft.capacity) : null
+    if (capacity !== null && (!Number.isInteger(capacity) || capacity < 1)) { setEventFormError('Количество мест должно быть целым числом больше нуля.'); setEventSaving(false); return }
+    const { data, error } = await supabase.from('events').insert({ title: eventDraft.title.trim(), description: eventDraft.description.trim(), starts_at: startsAt.toISOString(), ends_at: endsAt?.toISOString() ?? null, location: eventDraft.location.trim(), capacity, status: eventDraft.status, created_by: user.id }).select('id, title, starts_at, location, status').single()
+    if (error) setEventFormError('Не удалось сохранить мероприятие. Проверь права организатора и обязательные поля.')
+    else if (data) { setManagedEvents(current => [...current, data as ManagedEvent].sort((a,b) => a.starts_at.localeCompare(b.starts_at))); setEventDraft({ title: '', description: '', starts_at: '', ends_at: '', location: 'Асбест', capacity: '', status: 'draft' }); setEventFormMessage(eventDraft.status === 'published' ? 'Мероприятие опубликовано и появится в афише.' : 'Черновик мероприятия сохранён.') }
+    setEventSaving(false)
   }
   const handleProfileSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
