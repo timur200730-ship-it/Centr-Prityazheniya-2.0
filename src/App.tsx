@@ -78,7 +78,10 @@ export default function App() {
         const { data, error } = await supabase.auth.signUp({
           email: authEmail.trim(),
           password: authPassword,
-          options: { data: { display_name: authDisplayName.trim() || 'Участник' } },
+          options: {
+            data: { display_name: authDisplayName.trim() || 'Участник' },
+            emailRedirectTo: `${window.location.origin}/`,
+          },
         })
         if (error) throw error
         if (data.session) {
