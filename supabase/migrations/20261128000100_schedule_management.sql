@@ -96,6 +96,20 @@ create policy "Organizers create own event drafts"
     and public.has_role((select auth.uid()), 'organizer'::public.app_role)
   );
 
+drop policy if exists "Organizers update own events" on public.events;
+create policy "Organizers update own event drafts"
+  on public.events for update to authenticated
+  using (
+    created_by = (select auth.uid())
+    and status = 'draft'
+    and public.has_role((select auth.uid()), 'organizer'::public.app_role)
+  )
+  with check (
+    created_by = (select auth.uid())
+    and status = 'draft'
+    and public.has_role((select auth.uid()), 'organizer'::public.app_role)
+  );
+
 create or replace function public.create_organizer_invite(
   p_token text,
   p_label text,
