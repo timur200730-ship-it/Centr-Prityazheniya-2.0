@@ -104,3 +104,50 @@
 .managed-event small{font-size:9px;color:#9a7770;white-space:nowrap}
 .managed-event small.published{color:#5e7b65}
 @media(max-width:560px){.organizer-tools{padding-top:20px}.organizer-fields{grid-template-columns:1fr;gap:13px}}
+
+
+/* Center directions catalog */
+.direction-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}
+.direction-card{border:1px solid #e9e0d9;border-radius:16px;padding:21px;background:#fbf9f6;display:flex;flex-direction:column;min-height:205px;box-shadow:0 8px 24px #40394408}
+.direction-category{font-size:8px;font-weight:800;letter-spacing:1.4px;color:#a16f65}
+.direction-card h3{font-size:16px;line-height:1.4;color:#514751;margin:16px 0 8px}
+.direction-card p{font-size:11px;line-height:1.8;color:#817982;margin:0 0 15px}
+.direction-lead{margin-top:auto;padding-top:12px;border-top:1px solid #eee7e0;font-size:10px;color:#8b828a}
+.direction-lead strong{color:#625963;font-weight:700}
+.direction-live-heading{margin-top:55px}
+.direction-note{margin:25px 0 0;padding:15px 17px;border-left:2px solid #b97865;background:#f3eee9;color:#817982;font-size:10px;line-height:1.8}
+@media(max-width:900px){.direction-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.direction-grid{grid-template-columns:1fr;gap:11px}.direction-card{min-height:0;padding:19px}.direction-live-heading{margin-top:38px}}
+
+
+/* About the center */
+.about-section{padding-top:74px;padding-bottom:100px}
+.about-hero{display:grid;grid-template-columns:1fr auto;align-items:end;gap:30px;padding:20px 0 48px;border-bottom:1px solid #e8dfd8}
+.about-hero h2{font-family:"Playfair Display",Georgia,serif;font-size:clamp(36px,4.5vw,54px);line-height:1.17;letter-spacing:-1.8px;font-weight:500;color:#493f4b;margin:12px 0 17px}
+.about-hero h2 em{color:#9b776f;font-weight:500}
+.about-hero p{max-width:600px;font-size:13px;line-height:1.9;color:#817982;margin:0}
+.about-date{display:grid;gap:5px;text-align:right;padding:16px 19px;border:1px solid #e8ddd6;border-radius:14px;background:#fbf9f6;white-space:nowrap}
+.about-date strong{font-family:"Playfair Display",Georgia,serif;font-size:21px;font-weight:500;color:#9b776f}
+.about-date span,.about-kicker{font-size:9px;letter-spacing:1.4px;color:#91858d}
+.about-story{display:grid;grid-template-columns:1fr 1fr;gap:9%;padding:54px 0;align-items:center}
+.about-kicker,.about-team>.section-kicker{font-size:9px;font-weight:800;letter-spacing:1.7px;color:#a16f65}
+.about-story h3{font-family:"Playfair Display",Georgia,serif;font-size:clamp(25px,3vw,34px);line-height:1.35;font-weight:500;color:#514751;margin:14px 0 0}
+.about-story>p{font-size:12px;line-height:2;color:#817982;margin:0}
+.about-values{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+.about-values article{display:grid;gap:9px;padding:22px;border-radius:15px;background:#f0ece7}
+.about-values strong{font-family:"Playfair Display",Georgia,serif;font-size:22px;font-weight:500;color:#62545f}
+.about-values span{font-size:11px;line-height:1.8;color:#817982}
+.about-team{padding:66px 0 55px}
+.about-team h3,.about-rules h3,.about-contact h3{font-family:"Playfair Display",Georgia,serif;font-size:30px;line-height:1.25;font-weight:500;color:#514751;margin:12px 0}
+.about-team>p,.about-contact p{font-size:11px;line-height:1.8;color:#817982}
+.about-people{display:grid;grid-template-columns:repeat(3,1fr);gap:0 22px;margin-top:23px;border-top:1px solid #e8dfd8}
+.about-people>span{display:grid;gap:5px;padding:15px 0;border-bottom:1px solid #e8dfd8;font-size:12px;font-weight:700;color:#5b515d}
+.about-people small{font-size:10px;font-weight:400;color:#938891}
+.about-rules{padding:35px 38px;background:#f0ece7;border-radius:18px}
+.about-rules ul{padding-left:19px;margin:18px 0 0;display:grid;gap:11px}
+.about-rules li{font-size:11px;line-height:1.8;color:#716873;padding-left:4px}
+.about-contact{display:flex;justify-content:space-between;align-items:center;gap:25px;padding:48px 0 0}
+.about-contact h3{margin-bottom:7px}
+.about-contact p{max-width:580px;margin:0}
+.about-contact .button-primary{flex:none;text-decoration:none}
+@media(max-width:700px){.about-section{padding:53px 21px 70px}.about-hero{grid-template-columns:1fr;gap:20px;padding-bottom:33px}.about-date{justify-self:start;text-align:left}.about-story{grid-template-columns:1fr;gap:17px;padding:38px 0}.about-values{grid-template-columns:1fr}.about-values article{padding:18px}.about-team{padding:45px 0 38px}.about-people{grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px}.about-rules{padding:25px 21px}.about-contact{align-items:flex-start;flex-direction:column;padding-top:35px}.about-contact .button-primary{width:100%;justify-content:center}}

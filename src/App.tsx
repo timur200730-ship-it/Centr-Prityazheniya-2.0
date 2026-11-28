@@ -27,6 +27,25 @@ const principles = [
   { icon: Sparkles, title: 'С интересом', text: 'Создаём возможности пробовать новое, встречаться и развиваться.' },
 ]
 
+const directions = [
+  { category: 'ТВОРЧЕСТВО', title: 'Макраме «Древо жизни»', lead: 'Ирина Шиляева', description: 'Создание декоративных изделий в технике макраме. В афише центра был представлен цикл из двух занятий.' },
+  { category: 'ТВОРЧЕСТВО', title: 'Бумажная инженерия', lead: 'Ирина Миронова', description: 'Творческие занятия по созданию объёмных открыток и бумажных композиций.' },
+  { category: 'ТВОРЧЕСТВО', title: 'Рисование для взрослых', lead: 'Татьяна Мальцева', description: 'Практические занятия по живописи. В афише представлен мастер-класс «Осень, река».' },
+  { category: 'ТВОРЧЕСТВО', title: 'Детская рисовашка', lead: 'Татьяна Мальцева', description: 'Творческие занятия для детей. В афише представлен мастер-класс «Аватара» для участников от 6 лет.' },
+  { category: 'ТВОРЧЕСТВО', title: 'Вязание крючком', lead: 'Екатерина Трегубова', description: 'Занятия по вязанию крючком. В опубликованной афише указано возрастное ограничение 9+.' },
+  { category: 'ТВОРЧЕСТВО', title: 'Люневильская вышивка', lead: 'Наталья Зевакова', description: 'Знакомство с техникой люневильской вышивки и практические занятия.' },
+  { category: 'САМОПОЗНАНИЕ', title: 'Тайны нумерологии', lead: 'Елена Осинцева', description: 'Курс по нумерологии, представленный в расписании центра.' },
+  { category: 'САМОПОЗНАНИЕ', title: 'Трансформационные игры', lead: 'Елена Осинцева', description: 'Игровой формат исследования личных вопросов и жизненных ситуаций. В афише указана игра «Линии Рода».' },
+  { category: 'ПСИХОЛОГИЯ И НАВЫКИ', title: 'Разовые встречи и практикумы психолога', lead: 'Ведущие и темы — по анонсу', description: 'Отдельные тематические встречи, психологические практики и групповые мероприятия. Содержание и ведущий указываются в карточке каждого события.' },
+  { category: 'ОБЩЕНИЕ И НАВЫКИ', title: 'Искусство эффективных переговоров', lead: 'Тимур Хайретдинов', description: 'Практикум по навыкам эффективной коммуникации и ведения переговоров.' },
+  { category: 'ЗДОРОВЬЕ И ДВИЖЕНИЕ', title: 'Группа здоровья', lead: 'Ольга Березина', description: 'Занятия оздоровительной направленности.' },
+  { category: 'ЗДОРОВЬЕ И ДВИЖЕНИЕ', title: 'Танцуй на здоровье', lead: 'Светлана Мельникова', description: 'Танцевально-оздоровительные занятия для взрослых.' },
+  { category: 'ЗДОРОВЬЕ И ДВИЖЕНИЕ', title: 'Медитировать легко', lead: 'Марина Акимова', description: 'Занятия и практики медитации.' },
+  { category: 'ЗДОРОВЬЕ И ДВИЖЕНИЕ', title: 'Чувственный массаж', lead: 'Анна Ортюкова', description: 'Практические занятия. Формат и условия уточняются перед публикацией конкретного события.' },
+  { category: 'ЗДОРОВЬЕ И ДВИЖЕНИЕ', title: 'ПРОстройность. Тест состава тела', lead: 'Ольга Пономарева', description: 'Встреча с наставником по питанию и тест состава тела.' },
+  { category: 'ИНТЕЛЛЕКТУАЛЬНОЕ РАЗВИТИЕ', title: 'Шахматный клуб «Твой ход»', lead: 'Тимур Хайретдинов', description: 'Клуб для любителей шахмат. Встречи проходят один раз в неделю; актуальные день и время публикуются в афише.' },
+]
+
 export default function App() {
   const [active, setActive] = useState<Section>('Главная')
   const [menuOpen, setMenuOpen] = useState(false)
@@ -59,7 +78,7 @@ export default function App() {
   const [eventSaving, setEventSaving] = useState(false)
   const [eventFormError, setEventFormError] = useState('')
   const [eventFormMessage, setEventFormMessage] = useState('')
-  const [eventDraft, setEventDraft] = useState<EventDraft>({ title: '', description: '', starts_at: '', ends_at: '', location: 'Асбест', capacity: '', status: 'draft' })
+  const [eventDraft, setEventDraft] = useState<EventDraft>({ title: '', description: '', starts_at: '', ends_at: '', location: 'г. Асбест, ул. Уральская, 54', capacity: '', status: 'draft' })
 
   useEffect(() => {
     if (!supabase) return
@@ -190,7 +209,7 @@ export default function App() {
     if (capacity !== null && (!Number.isInteger(capacity) || capacity < 1)) { setEventFormError('Количество мест должно быть целым числом больше нуля.'); setEventSaving(false); return }
     const { data, error } = await supabase.from('events').insert({ title: eventDraft.title.trim(), description: eventDraft.description.trim(), starts_at: startsAt.toISOString(), ends_at: endsAt?.toISOString() ?? null, location: eventDraft.location.trim(), capacity, status: eventDraft.status, created_by: user.id }).select('id, title, starts_at, location, status').single()
     if (error) setEventFormError('Не удалось сохранить мероприятие. Проверь права организатора и обязательные поля.')
-    else if (data) { setManagedEvents(current => [...current, data as ManagedEvent].sort((a,b) => a.starts_at.localeCompare(b.starts_at))); setEventDraft({ title: '', description: '', starts_at: '', ends_at: '', location: 'Асбест', capacity: '', status: 'draft' }); setEventFormMessage(eventDraft.status === 'published' ? 'Мероприятие опубликовано и появится в афише.' : 'Черновик мероприятия сохранён.') }
+    else if (data) { setManagedEvents(current => [...current, data as ManagedEvent].sort((a,b) => a.starts_at.localeCompare(b.starts_at))); setEventDraft({ title: '', description: '', starts_at: '', ends_at: '', location: 'г. Асбест, ул. Уральская, 54', capacity: '', status: 'draft' }); setEventFormMessage(eventDraft.status === 'published' ? 'Мероприятие опубликовано и появится в афише.' : 'Черновик мероприятия сохранён.') }
     setEventSaving(false)
   }
   const handleProfileSave = async (event: FormEvent<HTMLFormElement>) => {
@@ -347,11 +366,22 @@ export default function App() {
           {catalogLoading ? <div className="catalog-empty">Загружаем афишу…</div> : catalogError ? <div className="catalog-empty">{catalogError}</div> : events.length === 0 ? <div className="catalog-empty"><CalendarDays size={28}/><strong>Скоро здесь появятся события</strong><span>Мы готовим программу встреч и мероприятий. Загляни чуть позже.</span></div> : <div className="catalog-grid">{events.map(item => <article className="catalog-card" key={item.id}><div className="catalog-card-top"><span className="catalog-tag">МЕРОПРИЯТИЕ</span><CalendarDays size={19}/></div><h3>{item.title}</h3><p>{item.description || 'Подробности мероприятия скоро появятся.'}</p><div className="catalog-meta"><span><CalendarDays size={15}/>{new Date(item.starts_at).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })}</span>{item.location && <span><MapPin size={15}/>{item.location}</span>}</div><button className="button-primary catalog-action" disabled={actionBusy === item.id || myEventIds.includes(item.id)} onClick={() => registerForEvent(item.id)}>{actionBusy === item.id ? 'Отправляем…' : myEventIds.includes(item.id) ? 'Ты записан' : 'Записаться'} {!myEventIds.includes(item.id) && <ArrowRight size={16}/>}</button></article>)}</div>}
         </section>}
         {active === 'Сообщества' && <section className="catalog-section section-wrap">
-          <div className="section-kicker">ЛЮДИ ПО ИНТЕРЕСАМ</div><div className="catalog-heading"><div><h2>Сообщества</h2><p>Найди своё окружение или открой новое направление.</p></div><span className="catalog-count">{clubs.length} сообществ</span></div>
-          {catalogLoading ? <div className="catalog-empty">Загружаем сообщества…</div> : catalogError ? <div className="catalog-empty">{catalogError}</div> : clubs.length === 0 ? <div className="catalog-empty"><Users size={28}/><strong>Сообщества скоро откроются</strong><span>Здесь появятся клубы, инициативы и группы по интересам.</span></div> : <div className="catalog-grid">{clubs.map(item => <article className="catalog-card club-card" key={item.id}><div className="catalog-card-top"><span className="catalog-tag">СООБЩЕСТВО</span><Users size={19}/></div><h3>{item.name}</h3><p>{item.summary || item.description || 'Описание сообщества скоро появится.'}</p><div className="catalog-meta"><span><MapPin size={15}/>{item.city || 'Асбест'}</span></div><button className="button-primary catalog-action" disabled={actionBusy === item.id || myClubIds.includes(item.id)} onClick={() => requestClubMembership(item.id)}>{actionBusy === item.id ? 'Отправляем…' : myClubIds.includes(item.id) ? 'Заявка отправлена' : 'Присоединиться'} {!myClubIds.includes(item.id) && <ArrowRight size={16}/>}</button></article>)}</div>}
+          <div className="section-kicker">ЛЮДИ ПО ИНТЕРЕСАМ</div><div className="catalog-heading"><div><h2>Сообщества и направления</h2><p>Знакомься с тем, чем живёт Центр Притяжения, и выбирай то, что тебе интересно.</p></div><span className="catalog-count">{directions.length} направлений</span></div>
+          <div className="direction-grid">{directions.map(item => <article className="direction-card" key={item.title}><span className="direction-category">{item.category}</span><h3>{item.title}</h3><p>{item.description}</p><div className="direction-lead">Ведущий: <strong>{item.lead}</strong></div></article>)}</div>
+          {clubs.length > 0 && <><div className="catalog-heading direction-live-heading"><div><h2>Открытые сообщества</h2><p>Сообщества, в которые уже можно отправить заявку на вступление.</p></div></div>
+          {catalogLoading ? <div className="catalog-empty">Загружаем сообщества…</div> : catalogError ? <div className="catalog-empty">{catalogError}</div> : <div className="catalog-grid">{clubs.map(item => <article className="catalog-card club-card" key={item.id}><div className="catalog-card-top"><span className="catalog-tag">СООБЩЕСТВО</span><Users size={19}/></div><h3>{item.name}</h3><p>{item.summary || item.description || 'Описание сообщества скоро появится.'}</p><div className="catalog-meta"><span><MapPin size={15}/>{item.city || 'Асбест'}</span></div><button className="button-primary catalog-action" disabled={actionBusy === item.id || myClubIds.includes(item.id)} onClick={() => requestClubMembership(item.id)}>{actionBusy === item.id ? 'Отправляем…' : myClubIds.includes(item.id) ? 'Заявка отправлена' : 'Присоединиться'} {!myClubIds.includes(item.id) && <ArrowRight size={16}/>}</button></article>)}</div>}</>}
+          <p className="direction-note">Даты, стоимость и условия участия публикуются отдельно в афише конкретных мероприятий. Направления могут проводиться курсами, циклами или разовыми встречами.</p>
         </section>}
         {active === 'Развитие' && <section className="catalog-section section-wrap"><div className="section-kicker">УЧИСЬ И ПРОБУЙ НОВОЕ</div><h2>Развитие</h2><div className="catalog-empty"><Sprout size={28}/><strong>Пространство возможностей</strong><span>Здесь появятся программы, мастер-классы и образовательные направления центра.</span></div></section>}
-        {active === 'О центре' && <section className="catalog-section section-wrap"><div className="section-kicker">НАША ИСТОРИЯ И ЦЕННОСТИ</div><h2>О центре</h2><div className="catalog-empty"><HeartHandshake size={28}/><strong>Место, где можно быть собой</strong><span>Мы создаём открытое пространство для общения, творчества, развития и взаимной поддержки в Асбесте.</span></div></section>}
+        {active === 'О центре' && <section className="about-section section-wrap">
+          <div className="section-kicker">НАША ИСТОРИЯ И ЦЕННОСТИ</div>
+          <div className="about-hero"><div><h2>Центр Притяжения —<br/><em>пространство возможностей</em></h2><p>Открытое сообщество в Асбесте, которое объединяет людей, интересы, инициативы и возможности для развития.</p></div><div className="about-date"><strong>05.10.2025</strong><span>дата открытия центра</span></div></div>
+          <div className="about-story"><div><span className="about-kicker">НАША ИДЕЯ</span><h3>Здесь можно не только найти своё место. Здесь можно создать что-то своё.</h3></div><p>Центр задуман как пространство встреч, общения, творчества и личного развития. Здесь могут находить друг друга люди с общими интересами, появляться новые клубы и инициативы, а отдельные встречи превращаться в регулярные сообщества.</p></div>
+          <div className="about-values"><article><strong>Люди</strong><span>Знакомства, поддержка и живое общение.</span></article><article><strong>Интересы</strong><span>Творчество, самопознание, движение и обучение.</span></article><article><strong>Инициативы</strong><span>Возможность предложить идею и собрать вокруг неё людей.</span></article></div>
+          <div className="about-team"><div className="section-kicker">ВЕДУЩИЕ И МАСТЕРА</div><h3>Люди, которые наполняют центр</h3><p>В афишах и программах центра представлены ведущие и мастера разных направлений:</p><div className="about-people"><span>Елена Осинцева <small>нумерология, трансформационные игры</small></span><span>Тимур Хайретдинов <small>переговоры, шахматный клуб</small></span><span>Ирина Шиляева <small>макраме</small></span><span>Ирина Миронова <small>бумажная инженерия</small></span><span>Татьяна Мальцева <small>рисование</small></span><span>Екатерина Трегубова <small>вязание крючком</small></span><span>Наталья Зевакова <small>люневильская вышивка</small></span><span>Ольга Березина <small>группа здоровья</small></span><span>Светлана Мельникова <small>танцевальные занятия</small></span><span>Марина Акимова <small>медитация</small></span><span>Анна Ортюкова <small>массажные практики</small></span><span>Ольга Пономарева <small>питание и тест состава тела</small></span></div></div>
+          <div className="about-rules"><div className="section-kicker">НАШИ ДОГОВОРЁННОСТИ</div><h3>Чтобы каждому было комфортно</h3><ul><li>Уважать друг друга, личные границы и право каждого на собственное мнение.</li><li>Бережно относиться к личной информации и не распространять чужие истории без согласия.</li><li>Приходить на занятия вовремя и заранее предупреждать организатора, если планы изменились.</li><li>Уточнять условия, стоимость, возрастные ограничения и наличие мест в анонсе конкретного события.</li><li>Для участия ребёнка согласовывать запись и сопровождение со взрослым.</li></ul></div>
+          <div className="about-contact"><div><div className="section-kicker">МЫ НА СВЯЗИ</div><h3>До встречи в Центре Притяжения</h3><p>Наш адрес: г. Асбест, ул. Уральская, 54. Актуальные анонсы, новости и способы связаться с организаторами — в нашей группе ВКонтакте.</p></div><a className="button-primary" href="https://vk.ru/centrpritiyzheniy" target="_blank" rel="noreferrer">Открыть группу ВКонтакте <ArrowRight size={16}/></a></div>
+        </section>}
         {active === 'Главная' && <>
         <section className="intro-section section-wrap">
           <div className="section-kicker">РАДЫ ТЕБЯ ВИДЕТЬ</div>
@@ -377,7 +407,7 @@ export default function App() {
       </main>
 
       <footer className="site-footer">
-        <div className="footer-top"><a className="brand footer-brand" href="#top"><span className="brand-mark"><span /></span><span className="brand-copy"><strong>Центр Притяжения</strong><small>Притягиваем возможности. Вдохновляем на рост.</small></span></a><div className="footer-location"><MapPin size={17} /> Асбест, Свердловская область</div></div>
+        <div className="footer-top"><a className="brand footer-brand" href="#top"><span className="brand-mark"><span /></span><span className="brand-copy"><strong>Центр Притяжения</strong><small>Притягиваем возможности. Вдохновляем на рост.</small></span></a><div className="footer-location"><MapPin size={17} /> г. Асбест, ул. Уральская, 54</div></div>
         <div className="footer-bottom"><span>© Центр Притяжения</span><span>Тепло. Доверие. Развитие.</span><span>Сделано с заботой о людях</span></div>
       </footer>
 
